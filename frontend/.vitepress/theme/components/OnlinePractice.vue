@@ -302,17 +302,37 @@ function stopTimer() {
 async function init() {
   const params = new URLSearchParams(window.location.search)
   const paperId = params.get('paperId')
-  if (!paperId) {
+  const questionIds = params.get('questionIds')
+
+  if (!paperId && !questionIds) {
     loaded.value = true
     return
   }
 
   try {
-    const detailRes = await paperApi.getDetail(paperId)
-    if (!detailRes.success) return
-    paperDetail.value = detailRes.data
-    questions.value = detailRes.data.questions || []
-    materials.value = detailRes.data.materials || []
+    if (paperId) {
+      // 题库模式：通过 paperId 加载整张试卷
+      const detailRes = await paperApi.getDetail(paperId)
+      if (!detailRes.success) return
+      paperDetail.value = detailRes.data
+      questions.value = detailRes.data.questions || []
+      materials.value = detailRes.data.materials || []
+    } else {
+      // 专项练习模式：题目数据由 PaperList 通过 localStorage 传递
+      paperDetail.value = {
+        title: '专项练习',
+        questionCount: questionIds.split(',').length,
+        year: new Date().getFullYear(),
+        regionName: ''
+      }
+      const cached = localStorage.getItem('specialQuestions')
+      if (cached) {
+        try {
+          questions.value = JSON.parse(cached)
+          localStorage.removeItem('specialQuestions')
+        } catch {}
+      }
+    }
     loaded.value = true
 
     // 未登录时只浏览试卷，不做题
@@ -320,6 +340,9 @@ async function init() {
       needLogin.value = true
       return
     }
+
+    // 只有题库模式才创建会话（专项练习没有 paperId）
+    if (!paperId) return
 
     try {
       const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
@@ -337,7 +360,6 @@ async function init() {
         if (sessionRes.data.status === 'ongoing') startTimer()
       }
     } catch (e) {
-      // 会话创建失败（如 token 过期），允许浏览但不做题
       needLogin.value = true
       console.warn('创建会话失败，切换到浏览模式', e)
     }

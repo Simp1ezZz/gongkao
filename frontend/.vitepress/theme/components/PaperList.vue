@@ -134,6 +134,7 @@ async function loadRegions() {
 
 function startPractice(paper) {
   if (props.mode === 'special') {
+    localStorage.setItem('specialQuestions', JSON.stringify(questions.value))
     const qIds = questions.value.map(q => q.id).join(',')
     window.location.href = `/practice/online/?questionIds=${qIds}`
   } else {
