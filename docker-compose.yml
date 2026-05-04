@@ -1,6 +1,6 @@
 services:
   mysql:
-    image: mysql:9.2
+    image: mysql:9.7.0
     container_name: gongkao-mysql
     restart: unless-stopped
     environment:
@@ -23,7 +23,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.6.2-alpine
     container_name: gongkao-redis
     restart: unless-stopped
     ports:

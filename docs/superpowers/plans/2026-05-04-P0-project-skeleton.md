@@ -6,7 +6,7 @@
 
 **Architecture:** 前后端分离 + AI 微服务。VitePress 前端、Spring Boot 主后端、FastAPI AI 服务各自独立容器，共享 MySQL/Redis/MinIO 基础设施。
 
-**Tech Stack:** VitePress 2.0.0-alpha.15, Spring Boot 3.5.12, MyBatis-Plus 3.5.12, FastAPI 0.115.12, MySQL 9.2, Redis 7.4, MinIO latest, Docker Compose v2
+**Tech Stack:** VitePress 2.0.0-alpha.15, Spring Boot 3.5.12, MyBatis-Plus 3.5.12, FastAPI 0.115.12, MySQL 9.7.0, Redis 8.6.2, MinIO latest, Docker Compose v2
 
 **Spec:** `docs/superpowers/specs/2026-05-04-bala-gongkao-design.md`
 
@@ -153,7 +153,7 @@ git commit -m "chore: init project structure"
 ```yaml
 services:
   mysql:
-    image: mysql:9.2
+    image: mysql:9.7.0
     container_name: gongkao-mysql
     restart: unless-stopped
     environment:
@@ -176,7 +176,7 @@ services:
       retries: 5
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:8.6.2-alpine
     container_name: gongkao-redis
     restart: unless-stopped
     ports:
