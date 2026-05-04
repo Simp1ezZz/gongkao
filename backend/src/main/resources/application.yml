@@ -16,8 +16,8 @@ spring:
   mail:
     host: ${MAIL_HOST:smtp.qq.com}
     port: ${MAIL_PORT:465}
-    username: ${MAIL_USERNAME:your_email@qq.com}
-    password: ${MAIL_PASSWORD:your_smtp_auth_code}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
