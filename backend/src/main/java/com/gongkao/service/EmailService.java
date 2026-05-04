@@ -2,6 +2,7 @@ package com.gongkao.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -17,6 +18,9 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final StringRedisTemplate redisTemplate;
+
+    @Value("${spring.mail.username}")
+    private String fromEmail;
 
     private static final long CODE_TTL_MINUTES = 5;
 
@@ -34,6 +38,7 @@ public class EmailService {
         redisTemplate.opsForValue().set(rateKey, "1", 60, TimeUnit.SECONDS);
 
         SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(fromEmail);
         message.setTo(email);
         message.setSubject("BALA公考 - 验证码");
         message.setText("您的验证码是：" + code + "\n\n验证码5分钟内有效，请勿泄露给他人。");
