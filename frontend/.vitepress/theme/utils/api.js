@@ -94,4 +94,52 @@ export function logout() {
   localStorage.removeItem('user')
 }
 
+// 试卷相关 API
+export const paperApi = {
+  list(params) {
+    return api.get('/papers', { params })
+  },
+  getDetail(id) {
+    return api.get(`/papers/${id}`)
+  },
+  getMaterials(paperId) {
+    return api.get(`/papers/${paperId}/materials`)
+  },
+  getQuestionsByKnowledge(params) {
+    return api.get('/papers/questions/by-knowledge', { params })
+  },
+  batchSubmit(data) {
+    return api.post('/papers/user-answers/batch', data)
+  },
+  getMyAnswers(paperId) {
+    return api.get(`/papers/${paperId}/my-answers`)
+  },
+}
+
+// 地区 API
+export const regionApi = {
+  list() {
+    return api.get('/regions')
+  },
+}
+
+// 做题会话 API
+export const sessionApi = {
+  create(data) {
+    return api.post('/sessions', data)
+  },
+  list() {
+    return api.get('/sessions')
+  },
+  get(id) {
+    return api.get(`/sessions/${id}`)
+  },
+  update(id, data) {
+    return api.put(`/sessions/${id}`, data)
+  },
+  submit(id, data) {
+    return api.post(`/sessions/${id}/submit`, data)
+  },
+}
+
 export { api, aiApi, API_BASE, AI_BASE }

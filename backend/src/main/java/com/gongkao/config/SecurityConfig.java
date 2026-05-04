@@ -61,6 +61,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/stats/**").permitAll()
                 .requestMatchers("/api/site-config/**").permitAll()
                 .requestMatchers("/api/proxy/**").permitAll()
+                .requestMatchers("/api/regions/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/papers/**").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

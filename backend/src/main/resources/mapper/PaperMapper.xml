@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gongkao.mapper.PaperMapper">
+
+    <select id="selectPageWithRegion" resultType="com.gongkao.entity.Paper">
+        SELECT p.*, r.name AS region_name
+        FROM paper p
+        LEFT JOIN region r ON p.region_id = r.id
+        WHERE p.category = #{category}
+        <if test="regionId != null">
+            AND p.region_id = #{regionId}
+        </if>
+        ORDER BY p.year DESC, p.id DESC
+    </select>
+
+</mapper>
