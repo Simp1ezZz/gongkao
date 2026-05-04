@@ -10,7 +10,7 @@
           {{ paperDetail.regionName || '通用' }}
         </span>
       </div>
-      <div class="timer" v-if="!needLogin">
+      <div class="timer" v-if="session">
         <span class="time">{{ formatTime(timeElapsed) }}</span>
         <button v-if="session?.status === 'ongoing'" class="btn-pause"
                 @click="togglePause">暂停</button>
@@ -67,7 +67,7 @@
       <span class="answered-count">{{ answeredCount }} / {{ questions.length }} 已答</span>
       <button v-if="currentIndex < questions.length - 1"
               @click="nextQuestion">下一题</button>
-      <button v-else-if="!needLogin" class="btn-submit" @click="confirmSubmit">提交试卷</button>
+      <button v-else class="btn-submit" @click="confirmSubmit">提交试卷</button>
     </div>
 
     <!-- 确认提交弹窗 -->
@@ -204,9 +204,9 @@ function formatTime(seconds) {
 }
 
 function selectAnswer(label) {
-  if (result.value || needLogin.value) return
+  if (result.value) return
   answers.value[currentQuestion.value.id] = label
-  debouncedSave()
+  if (session.value) debouncedSave()
 }
 
 function prevQuestion() {
@@ -257,6 +257,10 @@ async function saveProgress() {
 }
 
 function confirmSubmit() {
+  if (!localStorage.getItem('token')) {
+    needLogin.value = true
+    return
+  }
   showSubmitModal.value = true
 }
 
@@ -265,20 +269,20 @@ async function submitExam() {
   stopTimer()
 
   try {
-    await sessionApi.submit(session.value.id, {
-      timeElapsed: timeElapsed.value,
-      answers: JSON.stringify(
-        Object.entries(answers.value).map(([qId, ans]) => ({
-          questionId: Number(qId), answer: ans
-        }))
-      )
-    })
-
     const answerItems = Object.entries(answers.value).map(([qId, ans]) => ({
       questionId: Number(qId), answer: ans
     }))
+
+    // 题库模式：先提交会话再提交答案
+    if (session.value) {
+      await sessionApi.submit(session.value.id, {
+        timeElapsed: timeElapsed.value,
+        answers: JSON.stringify(answerItems)
+      })
+    }
+
     const res = await paperApi.batchSubmit({
-      sessionId: session.value.id,
+      sessionId: session.value?.id || null,
       answers: answerItems
     })
     if (res.success) {
@@ -335,14 +339,8 @@ async function init() {
     }
     loaded.value = true
 
-    // 未登录时只浏览试卷，不做题
-    if (!localStorage.getItem('token')) {
-      needLogin.value = true
-      return
-    }
-
-    // 只有题库模式才创建会话（专项练习没有 paperId）
-    if (!paperId) return
+    // 只有题库模式 + 已登录 才创建会话和计时
+    if (!paperId || !localStorage.getItem('token')) return
 
     try {
       const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
