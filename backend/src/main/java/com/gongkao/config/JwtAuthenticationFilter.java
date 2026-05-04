@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -16,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.ArrayList;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -28,6 +30,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
+        log.debug("JWT filter: uri={}, header={}", request.getRequestURI(), header != null ? "present" : "null");
 
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
@@ -41,13 +44,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 Long userId = jwtUtil.getUserIdFromToken(token);
+                log.debug("JWT filter: extracted userId={}", userId);
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(userId, null, new ArrayList<>());
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                log.debug("JWT filter: auth set, authenticated={}", auth.isAuthenticated());
 
                 request.setAttribute("userId", userId);
-            } catch (JwtException e) {
-                // Token 无效，不设置认证，让 Spring Security 处理
+            } catch (Exception e) {
+                log.warn("JWT filter: token parse failed: {}", e.getMessage());
             }
         }
 

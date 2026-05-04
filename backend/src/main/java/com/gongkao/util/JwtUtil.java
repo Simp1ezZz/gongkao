@@ -60,7 +60,7 @@ public class JwtUtil {
 
     public Long getUserIdFromToken(String token) {
         Claims claims = parseToken(token);
-        return claims.get("user_id", Long.class);
+        return Long.parseLong(claims.getSubject());
     }
 
     public boolean isTokenExpired(String token) {

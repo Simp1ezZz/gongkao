@@ -51,4 +51,10 @@ public class AuthController {
         }
         return Result.ok();
     }
+
+    @GetMapping("/me")
+    public Result<Long> me(HttpServletRequest request) {
+        Long userId = (Long) request.getAttribute("userId");
+        return Result.ok(userId);
+    }
 }
