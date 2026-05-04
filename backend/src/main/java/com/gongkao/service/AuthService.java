@@ -108,17 +108,23 @@ public class AuthService {
 
     public AuthResponse refresh(RefreshRequest req) {
         try {
-            String type = jwtUtil.getTokenType(req.getRefreshToken());
+            String token = req.getRefreshToken();
+            String blacklisted = redisTemplate.opsForValue().get("token:blacklist:" + token);
+            if (blacklisted != null) {
+                throw new RuntimeException("refresh token已失效");
+            }
+
+            String type = jwtUtil.getTokenType(token);
             if (!"refresh".equals(type)) {
                 throw new RuntimeException("无效的refresh token");
             }
 
-            Long userId = jwtUtil.getUserIdFromToken(req.getRefreshToken());
+            Long userId = jwtUtil.getUserIdFromToken(token);
 
-            long remaining = jwtUtil.getTokenRemainingTime(req.getRefreshToken());
+            long remaining = jwtUtil.getTokenRemainingTime(token);
             if (remaining > 0) {
                 redisTemplate.opsForValue().set(
-                        "token:blacklist:" + req.getRefreshToken(), "1", remaining, TimeUnit.MILLISECONDS);
+                        "token:blacklist:" + token, "1", remaining, TimeUnit.MILLISECONDS);
             }
 
             User user = userMapper.selectById(userId);
