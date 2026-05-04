@@ -10,13 +10,19 @@
           {{ paperDetail.regionName || '通用' }}
         </span>
       </div>
-      <div class="timer">
+      <div class="timer" v-if="!needLogin">
         <span class="time">{{ formatTime(timeElapsed) }}</span>
         <button v-if="session?.status === 'ongoing'" class="btn-pause"
                 @click="togglePause">暂停</button>
         <button v-if="session?.status === 'paused'" class="btn-resume"
                 @click="togglePause">继续</button>
       </div>
+    </div>
+
+    <!-- 未登录提示 -->
+    <div v-if="needLogin" class="login-hint">
+      <p>登录后可开始做题，答案将被自动保存</p>
+      <a class="btn-primary" href="/login/">去登录</a>
     </div>
 
     <!-- 材料区域 -->
@@ -61,7 +67,7 @@
       <span class="answered-count">{{ answeredCount }} / {{ questions.length }} 已答</span>
       <button v-if="currentIndex < questions.length - 1"
               @click="nextQuestion">下一题</button>
-      <button v-else class="btn-submit" @click="confirmSubmit">提交试卷</button>
+      <button v-else-if="!needLogin" class="btn-submit" @click="confirmSubmit">提交试卷</button>
     </div>
 
     <!-- 确认提交弹窗 -->
@@ -139,6 +145,7 @@ const answers = ref({})
 const timeElapsed = ref(0)
 const result = ref(null)
 const showSubmitModal = ref(false)
+const needLogin = ref(false)
 
 let timer = null
 let saveTimer = null
@@ -197,7 +204,7 @@ function formatTime(seconds) {
 }
 
 function selectAnswer(label) {
-  if (result.value) return
+  if (result.value || needLogin.value) return
   answers.value[currentQuestion.value.id] = label
   debouncedSave()
 }
@@ -306,23 +313,34 @@ async function init() {
     paperDetail.value = detailRes.data
     questions.value = detailRes.data.questions || []
     materials.value = detailRes.data.materials || []
+    loaded.value = true
 
-    const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
-    if (sessionRes.success) {
-      session.value = sessionRes.data
-      if (sessionRes.data.answers) {
-        try {
-          const savedAnswers = JSON.parse(sessionRes.data.answers)
-          savedAnswers.forEach(a => { answers.value[a.questionId] = a.answer })
-        } catch {}
-      }
-      currentIndex.value = sessionRes.data.currentIndex || 0
-      timeElapsed.value = sessionRes.data.timeElapsed || 0
-
-      if (sessionRes.data.status === 'ongoing') startTimer()
+    // 未登录时只浏览试卷，不做题
+    if (!localStorage.getItem('token')) {
+      needLogin.value = true
+      return
     }
 
-    loaded.value = true
+    try {
+      const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
+      if (sessionRes.success) {
+        session.value = sessionRes.data
+        if (sessionRes.data.answers) {
+          try {
+            const savedAnswers = JSON.parse(sessionRes.data.answers)
+            savedAnswers.forEach(a => { answers.value[a.questionId] = a.answer })
+          } catch {}
+        }
+        currentIndex.value = sessionRes.data.currentIndex || 0
+        timeElapsed.value = sessionRes.data.timeElapsed || 0
+
+        if (sessionRes.data.status === 'ongoing') startTimer()
+      }
+    } catch (e) {
+      // 会话创建失败（如 token 过期），允许浏览但不做题
+      needLogin.value = true
+      console.warn('创建会话失败，切换到浏览模式', e)
+    }
   } catch (e) {
     console.error('加载试卷失败', e)
     loaded.value = true
@@ -419,4 +437,7 @@ onUnmounted(stopTimer)
 .rq-explanation { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--vp-c-divider); }
 .rq-explanation h4 { margin: 0 0 4px; font-size: 14px; }
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
+.login-hint { text-align: center; padding: 24px; background: var(--vp-c-bg-soft); border-radius: 8px; margin-bottom: 16px; }
+.login-hint p { margin: 0 0 12px; color: var(--vp-c-text-2); }
+.login-hint .btn-primary { display: inline-block; text-decoration: none; }
 </style>
