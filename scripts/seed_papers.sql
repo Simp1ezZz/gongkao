@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 -- scripts/seed_papers.sql
 -- 测试试卷和题目数据
 

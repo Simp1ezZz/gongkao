@@ -1,3 +1,5 @@
+SET NAMES utf8mb4;
+
 -- 地区种子数据
 INSERT INTO region (name, category, sort_order) VALUES
 ('国考', 'national', 0),
