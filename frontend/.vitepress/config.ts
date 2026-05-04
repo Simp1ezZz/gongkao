@@ -7,6 +7,11 @@ export default defineConfig({
   lang: 'zh-CN',
   srcDir: 'pages',
   cleanUrls: true,
+  vite: {
+    server: {
+      allowedHosts: ['host.docker.internal'],
+    },
+  },
   themeConfig: {
     nav: [
       { text: '主页', link: '/' },
