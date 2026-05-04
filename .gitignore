@@ -1,0 +1,33 @@
+# Java
+backend/target/
+*.class
+*.jar
+*.war
+.idea/
+*.iml
+
+# Node
+frontend/node_modules/
+frontend/.vitepress/cache/
+frontend/.vitepress/dist/
+
+# Python
+ai-service/__pycache__/
+ai-service/.venv/
+ai-service/venv/
+*.pyc
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+data/

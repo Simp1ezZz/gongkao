@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -L \"https://baijing1.top/assets/chunks/theme.BocMDLOK.js\" -H \"User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/120.0.0.0 Safari/537.36\" -H \"Referer: https://baijing1.top/\")",
+      "Read(//tmp/**)",
+      "Bash(grep -oP '\"[^\"]{20,200}\"')",
+      "Bash(grep -oE '\"[^\"]{30,300}\"')",
+      "Bash(grep -oE '`[^`]*api[^`]*`')",
+      "Bash(grep -oE '`[^`]{5,100}`')",
+      "Bash(grep -oE '`[^`]*checkin[^`]*`')",
+      "Bash(grep -oE '`[^`]*wrong[^`]*`')",
+      "Bash(grep -oE '`[^`]*ai-question[^`]*`|`[^`]*ai-recommended[^`]*`|`[^`]*study-plan[^`]*`|`[^`]*secrets[^`]*`|`[^`]*wrong-question[^`]*`|`[^`]*high-freq[^`]*`|`[^`]*must-read[^`]*`|`[^`]*essay-review[^`]*`|`[^`]*stats[^`]*`')"
+    ]
+  }
+}
