@@ -4,5 +4,5 @@ uvicorn[standard]==0.34.2
 httpx==0.28.1
 python-jose[cryptography]==3.3.0
 pydantic==2.10.6
-pydantic-settings==2.8.2
+pydantic-settings==2.14.0
 sse-starlette==2.2.1

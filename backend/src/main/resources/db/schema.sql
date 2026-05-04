@@ -172,7 +172,7 @@ CREATE TABLE essay_review (
 CREATE TABLE ai_question (
     id                  BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id             BIGINT NOT NULL,
-    question_id         BIGINT NOT NULL,
+    question_id         BIGINT DEFAULT NULL,
     knowledge_point     VARCHAR(100) DEFAULT NULL,
     original_question   LONGTEXT NOT NULL,
     original_answer     LONGTEXT,
@@ -242,7 +242,7 @@ CREATE TABLE idiom (
     pinyin          VARCHAR(100) DEFAULT '',
     explanation     TEXT,
     provenance      TEXT,
-    usage           TEXT,
+    `usage`          TEXT,
     sentence        TEXT,
     analysis        TEXT,
     INDEX idx_idiom (idiom),
@@ -255,7 +255,7 @@ CREATE TABLE high_freq_word (
     word            VARCHAR(50) NOT NULL,
     category        VARCHAR(30) NOT NULL,
     explanation     TEXT NOT NULL,
-    usage           TEXT,
+    `usage`          TEXT,
     INDEX idx_category (category),
     INDEX idx_word (word)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -266,7 +266,7 @@ CREATE TABLE high_freq_idiom (
     idiom           VARCHAR(20) NOT NULL,
     category        VARCHAR(30) NOT NULL,
     explanation     TEXT NOT NULL,
-    usage           TEXT,
+    `usage`          TEXT,
     example         TEXT,
     INDEX idx_category (category),
     INDEX idx_idiom (idiom)
