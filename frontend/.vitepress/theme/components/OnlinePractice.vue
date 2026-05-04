@@ -19,11 +19,17 @@
       </div>
     </div>
 
-    <!-- 未登录提示 -->
-    <div v-if="needLogin" class="login-hint">
-      <p>登录后可开始做题，答案将被自动保存</p>
-      <a class="btn-primary" href="/login/">去登录</a>
-    </div>
+    <!-- 登录弹窗 -->
+    <Modal v-if="showLoginModal" @close="showLoginModal = false">
+      <div class="login-confirm">
+        <h3>需要登录</h3>
+        <p>登录后可提交试卷，答案将被自动保存</p>
+        <div class="login-actions">
+          <button @click="showLoginModal = false">取消</button>
+          <button class="btn-primary" @click="goToLogin">去登录</button>
+        </div>
+      </div>
+    </Modal>
 
     <!-- 材料区域 -->
     <div v-if="currentMaterial" class="material-panel">
@@ -145,7 +151,7 @@ const answers = ref({})
 const timeElapsed = ref(0)
 const result = ref(null)
 const showSubmitModal = ref(false)
-const needLogin = ref(false)
+const showLoginModal = ref(false)
 
 let timer = null
 let saveTimer = null
@@ -258,10 +264,21 @@ async function saveProgress() {
 
 function confirmSubmit() {
   if (!localStorage.getItem('token')) {
-    needLogin.value = true
+    showLoginModal.value = true
     return
   }
   showSubmitModal.value = true
+}
+
+function goToLogin() {
+  // 保存当前做题状态到 localStorage
+  const state = {
+    answers: answers.value,
+    currentIndex: currentIndex.value,
+    timeElapsed: timeElapsed.value
+  }
+  localStorage.setItem('practiceState', JSON.stringify(state))
+  window.location.href = `/login/?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
 }
 
 async function submitExam() {
@@ -339,6 +356,18 @@ async function init() {
     }
     loaded.value = true
 
+    // 恢复之前保存的做题状态（从登录页返回时）
+    const savedState = localStorage.getItem('practiceState')
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState)
+        if (state.answers) answers.value = state.answers
+        if (state.currentIndex) currentIndex.value = state.currentIndex
+        if (state.timeElapsed) timeElapsed.value = state.timeElapsed
+        localStorage.removeItem('practiceState')
+      } catch {}
+    }
+
     // 只有题库模式 + 已登录 才创建会话和计时
     if (!paperId || !localStorage.getItem('token')) return
 
@@ -358,7 +387,6 @@ async function init() {
         if (sessionRes.data.status === 'ongoing') startTimer()
       }
     } catch (e) {
-      needLogin.value = true
       console.warn('创建会话失败，切换到浏览模式', e)
     }
   } catch (e) {
@@ -457,7 +485,12 @@ onUnmounted(stopTimer)
 .rq-explanation { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--vp-c-divider); }
 .rq-explanation h4 { margin: 0 0 4px; font-size: 14px; }
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
-.login-hint { text-align: center; padding: 24px; background: var(--vp-c-bg-soft); border-radius: 8px; margin-bottom: 16px; }
-.login-hint p { margin: 0 0 12px; color: var(--vp-c-text-2); }
-.login-hint .btn-primary { display: inline-block; text-decoration: none; }
+.login-confirm { text-align: center; }
+.login-confirm h3 { margin: 0 0 12px; }
+.login-confirm p { color: var(--vp-c-text-2); margin: 0 0 16px; }
+.login-actions { display: flex; gap: 12px; justify-content: center; }
+.login-actions button {
+  padding: 8px 24px; border: 1px solid var(--vp-c-divider);
+  border-radius: 4px; cursor: pointer; background: var(--vp-c-bg);
+}
 </style>

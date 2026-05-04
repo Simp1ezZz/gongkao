@@ -148,6 +148,11 @@ async function handleLogin() {
     loggedIn.value = true
     userInfo.value = data
     showMessage('登录成功！', 'success')
+    // 如果有 redirect 参数，登录后跳转回去
+    const redirect = new URLSearchParams(window.location.search).get('redirect')
+    if (redirect) {
+      setTimeout(() => { window.location.href = redirect }, 800)
+    }
   } catch (e) {
     showMessage(e.message || '登录失败')
   } finally {
@@ -166,6 +171,10 @@ async function handleRegister() {
     loggedIn.value = true
     userInfo.value = data
     showMessage('注册成功！', 'success')
+    const redirect = new URLSearchParams(window.location.search).get('redirect')
+    if (redirect) {
+      setTimeout(() => { window.location.href = redirect }, 800)
+    }
   } catch (e) {
     showMessage(e.message || '注册失败')
   } finally {
