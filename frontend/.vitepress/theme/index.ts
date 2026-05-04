@@ -1,2 +1,9 @@
 import DefaultTheme from 'vitepress/theme'
-export default DefaultTheme
+import Login from './components/Login.vue'
+
+export default {
+  ...DefaultTheme,
+  enhanceApp({ app }) {
+    app.component('Login', Login)
+  }
+}
