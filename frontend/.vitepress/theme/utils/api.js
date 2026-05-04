@@ -65,7 +65,7 @@ function addRefreshInterceptor(instance) {
         window.location.href = '/login/'
       }
 
-      return Promise.reject(error.response?.data?.message || error.message)
+      return Promise.reject(new Error(error.response?.data?.message || error.message))
     }
   )
 }

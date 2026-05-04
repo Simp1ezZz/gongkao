@@ -83,7 +83,8 @@ public class AuthService {
             if (attempts != null && attempts == 1) {
                 redisTemplate.expire(attemptsKey, LOGIN_LOCK_MINUTES, TimeUnit.MINUTES);
             }
-            throw new RuntimeException("邮箱或密码错误");
+            long remaining = MAX_LOGIN_ATTEMPTS - (attempts != null ? attempts : 0);
+            throw new RuntimeException("邮箱或密码错误，还可尝试" + remaining + "次");
         }
 
         redisTemplate.delete(attemptsKey);

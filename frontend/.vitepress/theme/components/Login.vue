@@ -133,7 +133,8 @@ onMounted(() => {
 function showMessage(text, type = 'error') {
   message.value = text
   messageType.value = type
-  setTimeout(() => { message.value = '' }, 3000)
+  const duration = type === 'error' ? 5000 : 3000
+  setTimeout(() => { message.value = '' }, duration)
 }
 
 async function handleLogin() {
