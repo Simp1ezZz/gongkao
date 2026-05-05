@@ -9,8 +9,11 @@
     <div class="top-bar">
       <a href="/题库/" class="btn-back" title="返回题库">←</a>
       <h1 class="paper-title">{{ paperDetail.title }}</h1>
-      <button class="btn-submit-top" @click="confirmSubmit">
+      <button v-if="!result" class="btn-submit-top" @click="confirmSubmit">
         <span class="submit-icon">📤</span> 提交试卷
+      </button>
+      <button v-else class="btn-submitted" disabled>
+        <span class="submit-icon">📤</span> 已提交
       </button>
     </div>
 
@@ -41,10 +44,14 @@
           <div v-if="hasOptions" class="options">
             <div v-for="opt in parsedOptions" :key="opt.label"
                  class="option-item"
-                 :class="{ selected: isOptionSelected(opt.label) }"
+                 :class="getOptionClass(opt.label)"
                  @click="selectAnswer(opt.label)">
               <span class="option-label">{{ opt.label }}.</span>
               <span class="option-body" v-html="opt.text"></span>
+              <span v-if="result && currentResult && opt.label === currentResult.answer"
+                    class="option-badge correct-badge">正确答案</span>
+              <span v-if="result && currentResult && opt.label === currentResult.userAnswer && currentResult.userAnswer !== currentResult.answer"
+                    class="option-badge wrong-badge">你的答案</span>
             </div>
           </div>
 
@@ -54,11 +61,37 @@
           </div>
         </div>
 
+        <!-- 答案解析（提交后显示） -->
+        <div v-if="result && currentResult" class="analysis-section"
+             :class="{ expanded: expandedSet.has(currentIndex) }">
+          <div class="analysis-header" @click="toggleAnalysis(currentIndex)">
+            <span class="analysis-title">
+              {{ currentResult.isCorrect === false ? '❌' : currentResult.isCorrect === true ? '✅' : '⚠️' }}
+              答案解析
+            </span>
+            <span class="analysis-toggle">{{ expandedSet.has(currentIndex) ? '收起' : '展开' }}</span>
+          </div>
+          <div class="analysis-body">
+            <p><strong>正确答案：</strong>{{ currentResult.answer }}</p>
+            <p><strong>你的答案：</strong>{{ currentResult.userAnswer || '未作答' }}</p>
+            <div v-if="currentResult.explanation">
+              <p><strong>解析：</strong></p>
+              <div class="analysis-explanation" v-html="renderLatex(currentResult.explanation)"></div>
+            </div>
+            <p v-if="currentQuestion.module"><strong>💡 知识点：</strong>{{ currentQuestion.module }}</p>
+          </div>
+        </div>
+
         <!-- 翻页按钮 -->
         <div class="nav-buttons">
           <button :disabled="currentIndex <= 0" @click="prevQuestion">← 上一题</button>
           <button v-if="currentIndex < questions.length - 1" @click="nextQuestion">下一题 →</button>
+          <button v-if="result" class="btn-restart" @click="restartPractice">🔄 重新开始</button>
         </div>
+
+        <!-- AI 深度分析按钮 -->
+        <button v-if="result && currentResult && currentResult.isCorrect === false"
+                class="btn-ai-analysis">❤️ AI 深度分析这道错题</button>
       </div>
 
       <!-- 右侧：答题卡面板 -->
@@ -82,6 +115,10 @@
         <div class="card-legend">
           <span class="legend-item"><span class="legend-dot current"></span>当前</span>
           <span class="legend-item"><span class="legend-dot answered"></span>已答</span>
+          <template v-if="result">
+            <span class="legend-item"><span class="legend-dot correct"></span>正确</span>
+            <span class="legend-item"><span class="legend-dot wrong"></span>错误</span>
+          </template>
         </div>
 
         <div class="card-grid">
@@ -92,13 +129,36 @@
             </div>
             <div class="number-grid">
               <button v-for="item in group.items" :key="item.index"
-                      :class="['num-btn', {
-                        current: item.index === currentIndex,
-                        answered: answers[item.question.id] != null && item.index !== currentIndex
-                      }]"
+                      :class="['num-btn', getNumBtnClass(item)]"
                       @click="jumpToQuestion(item.index)">
                 {{ item.index + 1 }}
               </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 提交后统计 -->
+        <div v-if="result" class="card-result">
+          <div class="card-result-actions">
+            <button class="btn-ai-sm">🤖 AI 智能分析</button>
+            <a href="/practice/records/" class="link-records">📝 答题记录</a>
+          </div>
+          <div class="card-stats">
+            <div class="cs-item">
+              <span class="cs-value correct">{{ result.correctCount }}</span>
+              <span class="cs-label">正确</span>
+            </div>
+            <div class="cs-item">
+              <span class="cs-value wrong">{{ result.wrongCount }}</span>
+              <span class="cs-label">错误</span>
+            </div>
+            <div class="cs-item">
+              <span class="cs-value">{{ unansweredCount }}</span>
+              <span class="cs-label">未答</span>
+            </div>
+            <div class="cs-item">
+              <span class="cs-value">{{ result.accuracy }}%</span>
+              <span class="cs-label">正确率</span>
             </div>
           </div>
         </div>
@@ -120,46 +180,6 @@
       </div>
     </Modal>
 
-    <!-- 提交结果 -->
-    <div v-if="result" class="result-panel">
-      <h3>练习结果</h3>
-      <div class="result-stats">
-        <div class="stat-item">
-          <span class="stat-value">{{ result.correctCount }}</span>
-          <span class="stat-label">正确</span>
-        </div>
-        <div class="stat-item wrong">
-          <span class="stat-value">{{ result.wrongCount }}</span>
-          <span class="stat-label">错误</span>
-        </div>
-        <div class="stat-item">
-          <span class="stat-value">{{ result.accuracy }}%</span>
-          <span class="stat-label">正确率</span>
-        </div>
-      </div>
-
-      <div class="result-questions">
-        <div v-for="(q, idx) in result.questions" :key="q.id"
-             class="result-question"
-             :class="{ correct: q.isCorrect, wrong: q.isCorrect === false }">
-          <div class="rq-header">
-            <span>第{{ idx + 1 }}题</span>
-            <span v-if="q.isCorrect === true" class="badge-correct">正确</span>
-            <span v-else-if="q.isCorrect === false" class="badge-wrong">错误</span>
-            <span v-else class="badge-pending">待批改</span>
-          </div>
-          <div class="rq-content" v-html="renderLatex(q.content)"></div>
-          <div class="rq-answer">
-            <p>你的答案：<strong>{{ q.userAnswer || '未作答' }}</strong></p>
-            <p>正确答案：<strong>{{ q.answer }}</strong></p>
-          </div>
-          <div v-if="q.explanation" class="rq-explanation">
-            <h4>解析</h4>
-            <div v-html="renderLatex(q.explanation)"></div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
   <div v-else class="loading">加载中...</div>
 </template>
@@ -184,6 +204,7 @@ const showSubmitModal = ref(false)
 const showLoginModal = ref(false)
 const timerRunning = ref(false)
 const pausedLocally = ref(false)
+const expandedSet = ref(new Set())
 
 let timer = null
 let saveTimer = null
@@ -227,6 +248,54 @@ const moduleGroups = computed(() => {
   return groups
 })
 
+const resultMap = computed(() => {
+  if (!result.value || !result.value.questions) return {}
+  const map = {}
+  result.value.questions.forEach(q => { map[q.id] = q })
+  return map
+})
+
+const currentResult = computed(() => {
+  const q = currentQuestion.value
+  if (!q || !resultMap.value) return null
+  return resultMap.value[q.id] || null
+})
+
+const unansweredCount = computed(() => {
+  if (!result.value) return 0
+  return questions.value.length - result.value.correctCount - result.value.wrongCount
+})
+
+function getNumBtnClass(item) {
+  if (item.index === currentIndex.value) return 'current'
+  if (result.value) {
+    const r = resultMap.value[item.question.id]
+    if (r) {
+      if (r.isCorrect === true) return 'correct'
+      if (r.isCorrect === false) return 'wrong'
+    }
+    return 'unanswered-result'
+  }
+  if (answers.value[item.question.id] != null) return 'answered'
+  return ''
+}
+
+function toggleAnalysis(index) {
+  const s = new Set(expandedSet.value)
+  if (s.has(index)) s.delete(index)
+  else s.add(index)
+  expandedSet.value = s
+}
+
+function restartPractice() {
+  result.value = null
+  expandedSet.value = new Set()
+  answers.value = {}
+  currentIndex.value = 0
+  timeElapsed.value = 0
+  startTimer()
+}
+
 function formatTime(seconds) {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
@@ -262,6 +331,18 @@ function isOptionSelected(label) {
     return ans.split(',').includes(label)
   }
   return ans === label
+}
+
+function getOptionClass(label) {
+  if (result.value && currentResult.value) {
+    const r = currentResult.value
+    const cls = []
+    if (label === r.answer) cls.push('correct-option')
+    if (label === r.userAnswer && r.userAnswer !== r.answer) cls.push('wrong-option')
+    if (isOptionSelected(label) && !result.value) cls.push('selected')
+    return cls
+  }
+  return isOptionSelected(label) ? 'selected' : ''
 }
 
 function prevQuestion() {
@@ -323,7 +404,6 @@ async function saveProgress() {
 
 function confirmSubmit() {
   if (!localStorage.getItem('token')) {
-    // 保存当前状态以便登录后恢复
     saveLocalState()
     showLoginModal.value = true
     return
@@ -397,27 +477,55 @@ async function submitExam() {
   showSubmitModal.value = false
   stopTimer()
 
-  try {
-    const answerItems = Object.entries(answers.value).map(([qId, ans]) => ({
-      questionId: Number(qId), answer: ans
-    }))
+  const answerItems = Object.entries(answers.value).map(([qId, ans]) => ({
+    questionId: Number(qId), answer: ans
+  }))
+  const hasToken = !!localStorage.getItem('token')
 
-    if (session.value) {
-      await sessionApi.submit(session.value.id, {
-        timeElapsed: timeElapsed.value,
-        answers: JSON.stringify(answerItems)
+  if (hasToken) {
+    try {
+      if (session.value) {
+        await sessionApi.submit(session.value.id, {
+          timeElapsed: timeElapsed.value,
+          answers: JSON.stringify(answerItems)
+        })
+      }
+      const res = await paperApi.batchSubmit({
+        sessionId: session.value?.id || null,
+        answers: answerItems
       })
+      if (res.success) {
+        result.value = res.data
+        return
+      }
+    } catch (e) {
+      console.error('提交失败', e)
     }
+  }
 
-    const res = await paperApi.batchSubmit({
-      sessionId: session.value?.id || null,
-      answers: answerItems
-    })
-    if (res.success) {
-      result.value = res.data
+  // 未登录或 API 失败：本地生成结果
+  buildLocalResult()
+}
+
+function buildLocalResult() {
+  let correctCount = 0
+  let wrongCount = 0
+  const resultQuestions = questions.value.map(q => {
+    const userAnswer = answers.value[q.id] || null
+    return {
+      id: q.id,
+      content: q.content,
+      userAnswer,
+      answer: null,
+      explanation: '',
+      isCorrect: null
     }
-  } catch (e) {
-    console.error('提交失败', e)
+  })
+  result.value = {
+    correctCount,
+    wrongCount: 0,
+    accuracy: 0,
+    questions: resultQuestions
   }
 }
 
@@ -582,6 +690,13 @@ onUnmounted(() => {
 }
 .btn-submit-top:hover { opacity: 0.9; }
 .submit-icon { font-size: 14px; }
+.btn-submitted {
+  display: flex; align-items: center; gap: 4px;
+  padding: 8px 16px; background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-3); border: 1px solid var(--vp-c-divider);
+  border-radius: 6px; font-size: 14px; font-weight: 600;
+  cursor: not-allowed; white-space: nowrap; opacity: 0.7;
+}
 
 /* === 双栏布局 === */
 .practice-layout {
@@ -638,7 +753,7 @@ onUnmounted(() => {
 
 /* === 翻页按钮 === */
 .nav-buttons {
-  display: flex; justify-content: space-between; margin-top: 16px;
+  display: flex; justify-content: space-between; margin-top: 16px; gap: 8px;
 }
 .nav-buttons button {
   padding: 10px 20px; border: 1px solid var(--vp-c-divider);
@@ -647,14 +762,72 @@ onUnmounted(() => {
 }
 .nav-buttons button:hover { border-color: var(--vp-c-brand); }
 .nav-buttons button:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-restart {
+  padding: 10px 20px; border: 1px solid var(--vp-c-brand);
+  border-radius: 6px; cursor: pointer; background: var(--vp-c-brand);
+  color: #fff; font-size: 14px; transition: all 0.2s;
+}
+.btn-restart:hover { opacity: 0.9; }
+.btn-ai-analysis {
+  display: block; width: 100%; margin-top: 12px;
+  padding: 10px; border: 1px solid #f56c6c; border-radius: 6px;
+  background: transparent; color: #f56c6c; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-ai-analysis:hover { background: #f56c6c; color: #fff; }
+
+/* === 答案解析 === */
+.analysis-section {
+  margin-top: 12px; border: 1px solid var(--vp-c-divider);
+  border-radius: 8px; overflow: hidden;
+}
+.analysis-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; cursor: pointer;
+  background: var(--vp-c-bg-soft); transition: background 0.2s;
+}
+.analysis-header:hover { background: var(--vp-c-bg); }
+.analysis-title { font-size: 14px; font-weight: 600; }
+.analysis-toggle { font-size: 12px; color: var(--vp-c-text-2); }
+.analysis-body {
+  padding: 14px; border-top: 1px solid var(--vp-c-divider);
+  font-size: 14px; line-height: 1.7;
+  max-height: 150px; overflow: hidden; position: relative;
+  transition: max-height 0.3s ease;
+}
+.analysis-section.expanded .analysis-body {
+  max-height: none;
+}
+.analysis-body:not(.analysis-section.expanded .analysis-body)::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, var(--vp-c-bg-soft));
+}
+.analysis-body p { margin: 6px 0; }
+.analysis-explanation { margin-top: 4px; }
+
+/* === 提交后选项样式 === */
+.correct-option {
+  border-color: #67c23a !important;
+  background: rgba(103, 194, 58, 0.08) !important;
+}
+.wrong-option {
+  border-color: #f56c6c !important;
+  background: rgba(245, 108, 108, 0.08) !important;
+}
+.option-badge {
+  font-size: 11px; padding: 1px 6px; border-radius: 3px;
+  margin-left: 6px; font-weight: 600; white-space: nowrap;
+}
+.correct-badge { background: #67c23a; color: #fff; }
+.wrong-badge { background: #f56c6c; color: #fff; }
 
 /* === 右侧答题卡 === */
 .answer-card {
-  width: 260px; flex-shrink: 0;
+  width: 280px; flex-shrink: 0;
   background: var(--vp-c-bg-soft); border-radius: 10px;
   border: 1px solid var(--vp-c-divider);
   position: sticky; top: 72px;
-  max-height: calc(100vh - 80px); overflow-y: auto;
 }
 .card-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -689,6 +862,8 @@ onUnmounted(() => {
 }
 .legend-dot.current { background: var(--vp-c-brand); }
 .legend-dot.answered { background: #67c23a; }
+.legend-dot.correct { background: #67c23a; }
+.legend-dot.wrong { background: #f56c6c; }
 .card-grid { padding: 12px 16px; }
 .module-group { margin-bottom: 12px; }
 .module-group:last-child { margin-bottom: 0; }
@@ -712,6 +887,46 @@ onUnmounted(() => {
 .num-btn.answered {
   background: #67c23a; color: #fff; border-color: #67c23a;
 }
+.num-btn.correct {
+  background: #67c23a; color: #fff; border-color: #67c23a;
+}
+.num-btn.wrong {
+  background: #f56c6c; color: #fff; border-color: #f56c6c;
+}
+.num-btn.unanswered-result {
+  background: var(--vp-c-bg); color: var(--vp-c-text-3);
+  border-color: var(--vp-c-divider); opacity: 0.6;
+}
+
+/* === 答题卡提交后统计 === */
+.card-result {
+  border-top: 1px solid var(--vp-c-divider);
+  padding: 12px 16px;
+}
+.card-result-actions {
+  display: flex; gap: 10px; margin-bottom: 10px;
+}
+.btn-ai-sm {
+  padding: 6px 12px; border: 1px solid var(--vp-c-brand);
+  border-radius: 6px; background: var(--vp-c-brand); color: #fff;
+  font-size: 12px; cursor: pointer;
+}
+.link-records {
+  padding: 6px 12px; border: 1px solid var(--vp-c-divider);
+  border-radius: 6px; background: var(--vp-c-bg); color: var(--vp-c-text-1);
+  font-size: 12px; text-decoration: none;
+}
+.card-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+}
+.cs-item { text-align: center; }
+.cs-value {
+  display: block; font-size: 18px; font-weight: 700;
+  color: var(--vp-c-text-1);
+}
+.cs-value.correct { color: #67c23a; }
+.cs-value.wrong { color: #f56c6c; }
+.cs-label { font-size: 11px; color: var(--vp-c-text-3); }
 
 /* === 提交弹窗 === */
 .submit-confirm { text-align: center; }
@@ -722,30 +937,6 @@ onUnmounted(() => {
   background: var(--vp-c-brand); color: #fff; border: none;
   padding: 8px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;
 }
-
-/* === 结果面板 === */
-.result-panel { margin-top: 24px; padding: 0 20px; }
-.result-panel h3 { font-size: 18px; margin-bottom: 16px; }
-.result-stats { display: flex; gap: 24px; margin-bottom: 24px; }
-.stat-item {
-  text-align: center; padding: 16px; background: var(--vp-c-bg-soft);
-  border-radius: 8px; min-width: 100px;
-}
-.stat-item.wrong .stat-value { color: #f56c6c; }
-.stat-value { display: block; font-size: 28px; font-weight: 700; }
-.stat-label { font-size: 13px; color: var(--vp-c-text-2); }
-.result-questions { display: flex; flex-direction: column; gap: 16px; }
-.result-question { padding: 16px; border-radius: 8px; border-left: 4px solid var(--vp-c-divider); }
-.result-question.correct { border-left-color: #67c23a; }
-.result-question.wrong { border-left-color: #f56c6c; }
-.rq-header { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
-.badge-correct { color: #67c23a; font-size: 13px; font-weight: 600; }
-.badge-wrong { color: #f56c6c; font-size: 13px; font-weight: 600; }
-.badge-pending { color: #e6a23c; font-size: 13px; }
-.rq-content { margin-bottom: 8px; }
-.rq-answer p { margin: 4px 0; font-size: 14px; }
-.rq-explanation { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--vp-c-divider); }
-.rq-explanation h4 { margin: 0 0 4px; font-size: 14px; }
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
 
 /* === 响应式 === */
