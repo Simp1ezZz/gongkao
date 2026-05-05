@@ -330,13 +330,29 @@ function confirmSubmit() {
   showSubmitModal.value = true
 }
 
+function getSpecialStateKey() {
+  const params = new URLSearchParams(window.location.search)
+  const module = params.get('module')
+  const count = params.get('count')
+  if (!module || !count) return null
+  return `specialState_${module}_${count}`
+}
+
 function saveLocalState() {
   const state = {
     answers: answers.value,
     currentIndex: currentIndex.value,
     timeElapsed: timeElapsed.value
   }
-  localStorage.setItem('practiceState', JSON.stringify(state))
+  // For special practice, save with module+count key for resume capability
+  const specialKey = getSpecialStateKey()
+  if (specialKey) {
+    state.questions = questions.value
+    state.questionIds = questions.value.map(q => q.id)
+    localStorage.setItem(specialKey, JSON.stringify(state))
+  }
+  // Also save generic key for login-redirect recovery
+  localStorage.setItem('practiceState', JSON.stringify({ answers: answers.value, currentIndex: currentIndex.value, timeElapsed: timeElapsed.value }))
 }
 
 async function onLoginSuccess() {
@@ -450,17 +466,35 @@ async function init() {
     }
     loaded.value = true
 
-    // 恢复之前保存的做题状态（从登录页返回时）
-    const savedState = localStorage.getItem('practiceState')
-    if (savedState) {
-      try {
-        const state = JSON.parse(savedState)
-        if (state.answers) answers.value = state.answers
-        if (state.currentIndex != null) currentIndex.value = state.currentIndex
-        if (state.timeElapsed != null) timeElapsed.value = state.timeElapsed
-        localStorage.removeItem('practiceState')
-      } catch {}
+    // Restore practice state
+    const specialKey = getSpecialStateKey()
+    let restoredFromSpecial = false
+    if (specialKey) {
+      const savedSpecial = localStorage.getItem(specialKey)
+      if (savedSpecial) {
+        try {
+          const state = JSON.parse(savedSpecial)
+          if (state.answers) answers.value = state.answers
+          if (state.currentIndex != null) currentIndex.value = state.currentIndex
+          if (state.timeElapsed != null) timeElapsed.value = state.timeElapsed
+          restoredFromSpecial = true
+        } catch {}
+      }
     }
+
+    // Fallback: restore generic state (for login-redirect recovery)
+    if (!restoredFromSpecial) {
+      const savedState = localStorage.getItem('practiceState')
+      if (savedState) {
+        try {
+          const state = JSON.parse(savedState)
+          if (state.answers) answers.value = state.answers
+          if (state.currentIndex != null) currentIndex.value = state.currentIndex
+          if (state.timeElapsed != null) timeElapsed.value = state.timeElapsed
+        } catch {}
+      }
+    }
+    localStorage.removeItem('practiceState')
 
     // 始终启动前端计时器（无论是否登录）
     startTimer()
@@ -475,12 +509,12 @@ async function init() {
             try {
               const savedAnswers = JSON.parse(sessionRes.data.answers)
               // 如果本地没有恢复的状态，用服务端的
-              if (!savedState) {
+              if (!restoredFromSpecial) {
                 savedAnswers.forEach(a => { answers.value[a.questionId] = a.answer })
               }
             } catch {}
           }
-          if (!savedState) {
+          if (!restoredFromSpecial) {
             currentIndex.value = sessionRes.data.currentIndex || 0
             timeElapsed.value = sessionRes.data.timeElapsed || 0
           }
@@ -502,7 +536,13 @@ async function init() {
 onMounted(init)
 onUnmounted(() => {
   stopTimer()
-  if (!result.value) saveLocalState()
+  if (!result.value) {
+    saveLocalState()
+  } else {
+    // Submitted — clear any saved special practice state
+    const specialKey = getSpecialStateKey()
+    if (specialKey) localStorage.removeItem(specialKey)
+  }
 })
 </script>
 

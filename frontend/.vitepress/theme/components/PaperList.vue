@@ -176,12 +176,30 @@ async function startSpecial(moduleName, count) {
   if (!count || count < 1) return
   loading.value = true
   try {
+    // Check if there's a saved state for the same module+count — resume it
+    const stateKey = `specialState_${moduleName}_${count}`
+    const saved = localStorage.getItem(stateKey)
+    if (saved) {
+      try {
+        const state = JSON.parse(saved)
+        if (state.questionIds && state.questionIds.length === count) {
+          // Re-store questions for OnlinePractice to read, and navigate
+          localStorage.setItem('specialQuestions', JSON.stringify(state.questions))
+          window.location.href = `/practice/online/?questionIds=${state.questionIds.join(',')}&module=${encodeURIComponent(moduleName)}&count=${count}`
+          return
+        }
+      } catch {}
+      // Saved state is invalid or count mismatch — remove it
+      localStorage.removeItem(stateKey)
+    }
+
+    // No saved state or different count — fetch new questions
     const res = await paperApi.getQuestionsByKnowledge({ module: moduleName, limit: count })
     if (res.success && res.data?.length > 0) {
       const questions = res.data
       localStorage.setItem('specialQuestions', JSON.stringify(questions))
       const qIds = questions.map(q => q.id).join(',')
-      window.location.href = `/practice/online/?questionIds=${qIds}`
+      window.location.href = `/practice/online/?questionIds=${qIds}&module=${encodeURIComponent(moduleName)}&count=${count}`
     } else {
       alert('该模块暂无题目')
     }
