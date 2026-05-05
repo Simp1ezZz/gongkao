@@ -62,6 +62,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/site-config/**").permitAll()
                 .requestMatchers("/api/proxy/**").permitAll()
                 .requestMatchers("/api/regions/**").permitAll()
+                .requestMatchers("/api/files/serve/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/papers/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()

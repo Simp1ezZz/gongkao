@@ -78,4 +78,16 @@ public class FileService {
             throw new RuntimeException("文件删除失败", e);
         }
     }
+
+    public InputStream getObject(String objectKey) {
+        try {
+            return minioClient.getObject(
+                    GetObjectArgs.builder()
+                            .bucket(minioConfig.getBucket())
+                            .object(objectKey)
+                            .build());
+        } catch (Exception e) {
+            throw new RuntimeException("文件获取失败", e);
+        }
+    }
 }

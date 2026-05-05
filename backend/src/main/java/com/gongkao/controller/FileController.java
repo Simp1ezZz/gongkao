@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -41,6 +42,25 @@ public class FileController {
             return Result.ok(result);
         } catch (Exception e) {
             return Result.fail("文件上传失败: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/serve/**")
+    public void serveFile(jakarta.servlet.http.HttpServletRequest request,
+                          jakarta.servlet.http.HttpServletResponse response) {
+        String path = request.getRequestURI().substring("/api/files/serve/".length());
+        try (InputStream stream = fileService.getObject(path)) {
+            response.setContentType("application/octet-stream");
+            response.setHeader("Cache-Control", "public, max-age=86400");
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            var out = response.getOutputStream();
+            while ((bytesRead = stream.read(buffer)) != -1) {
+                out.write(buffer, 0, bytesRead);
+            }
+            out.flush();
+        } catch (Exception e) {
+            response.setStatus(404);
         }
     }
 }
