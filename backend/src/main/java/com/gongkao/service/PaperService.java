@@ -20,13 +20,12 @@ public class PaperService {
     private final PaperMapper paperMapper;
     private final MaterialGroupMapper materialGroupMapper;
     private final QuestionMapper questionMapper;
-    private final RegionMapper regionMapper;
 
     public PageResult<Paper> listPapers(PaperQueryRequest req) {
         String category = req.getCategory() != null ? req.getCategory() : "行测";
 
         Page<Paper> page = new Page<>(req.getPage(), req.getPageSize());
-        IPage<Paper> result = paperMapper.selectPageWithRegion(page, category, req.getRegionId());
+        IPage<Paper> result = paperMapper.selectPageWithRegion(page, category, req.getRegionName());
 
         return PageResult.of(result.getRecords(), result.getTotal(), req.getPage(), req.getPageSize());
     }
@@ -35,13 +34,6 @@ public class PaperService {
         Paper paper = paperMapper.selectById(paperId);
         if (paper == null) {
             throw new RuntimeException("试卷不存在: " + paperId);
-        }
-
-        if (paper.getRegionId() != null) {
-            Region region = regionMapper.selectById(paper.getRegionId());
-            if (region != null) {
-                paper.setRegionName(region.getName());
-            }
         }
 
         PaperDetailVO vo = new PaperDetailVO();

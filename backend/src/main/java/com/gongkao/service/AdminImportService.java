@@ -37,7 +37,7 @@ public class AdminImportService {
         PaperImportRequest.Metadata meta = req.getMetadata();
         paper.setTitle(meta.getTitle());
         paper.setCategory(meta.getCategory());
-        paper.setRegionId(meta.getRegionId());
+        paper.setRegionName(meta.getRegionName());
         paper.setRating(meta.getRating() != null ? meta.getRating() : 0);
         paper.setYear(meta.getYear());
         paperMapper.insert(paper);

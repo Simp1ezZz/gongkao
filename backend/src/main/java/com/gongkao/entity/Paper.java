@@ -15,12 +15,9 @@ public class Paper {
     private Long id;
     private String title;
     private String category;
-    private Integer regionId;
+    private String regionName;
     private Integer rating;
     private Integer questionCount;
     private Integer year;
     private LocalDateTime createdAt;
-
-    @TableField(exist = false)
-    private String regionName;
 }

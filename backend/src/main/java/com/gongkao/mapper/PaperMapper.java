@@ -11,5 +11,5 @@ public interface PaperMapper extends BaseMapper<Paper> {
 
     IPage<Paper> selectPageWithRegion(IPage<Paper> page,
                                        @Param("category") String category,
-                                       @Param("regionId") Integer regionId);
+                                       @Param("regionName") String regionName);
 }

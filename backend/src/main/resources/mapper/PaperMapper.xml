@@ -4,12 +4,11 @@
 <mapper namespace="com.gongkao.mapper.PaperMapper">
 
     <select id="selectPageWithRegion" resultType="com.gongkao.entity.Paper">
-        SELECT p.*, r.name AS region_name
+        SELECT p.*
         FROM paper p
-        LEFT JOIN region r ON p.region_id = r.id
         WHERE p.category = #{category}
-        <if test="regionId != null">
-            AND p.region_id = #{regionId}
+        <if test="regionName != null and regionName != ''">
+            AND p.region_name = #{regionName}
         </if>
         ORDER BY p.year DESC, p.id DESC
     </select>

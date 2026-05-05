@@ -92,9 +92,25 @@ def extract_metadata(soup: BeautifulSoup) -> ParsedMetadata:
     if "国家" in title or "国考" in title:
         region_name = "国考"
     else:
-        region_name = ""
+        region_name = extract_region_name(title)
 
     return ParsedMetadata(title=title, year=year, category=category, region_name=region_name)
+
+
+PROVINCE_KEYWORDS = [
+    "北京", "上海", "天津", "重庆",
+    "广东", "浙江", "江苏", "山东", "河南", "四川", "湖北", "湖南",
+    "福建", "安徽", "河北", "江西", "山西", "陕西", "辽宁", "吉林",
+    "黑龙江", "广西", "云南", "贵州", "甘肃", "内蒙古", "新疆", "宁夏",
+    "青海", "海南", "西藏",
+]
+
+
+def extract_region_name(title: str) -> str:
+    for keyword in PROVINCE_KEYWORDS:
+        if keyword in title:
+            return keyword
+    return ""
 
 
 def parse_answer_map(html_content: str) -> dict[int, str]:
@@ -110,8 +126,8 @@ def parse_option_div(div: Tag) -> OptionItem:
     else:
         label = ""
 
-    # LaTeX formula images (flag="tex") should be inline
-    for img_tag in div.find_all("img", attrs={"flag": "tex"}):
+    # All images should display inline with text
+    for img_tag in div.find_all("img"):
         style = img_tag.get("style", "")
         style = style.replace("display: block", "display: inline")
         img_tag["style"] = style
@@ -175,8 +191,8 @@ def parse_question_row(row: Tag) -> tuple[int, str, list[OptionItem], list[str]]
             if not isinstance(child, Tag):
                 continue
             if child.name == "p":
-                # LaTeX formula images (flag="tex") should be inline
-                for img in child.find_all("img", attrs={"flag": "tex"}):
+                # All images should display inline with text
+                for img in child.find_all("img"):
                     style = img.get("style", "")
                     style = style.replace("display: block", "display: inline")
                     img["style"] = style
@@ -226,6 +242,11 @@ def parse_questions_file(html_content: str) -> tuple[ParsedMetadata, list[Parsed
                     content_div = candidate
                     break
             if content_div:
+                # All images should display inline with text
+                for img in content_div.find_all("img"):
+                    style = img.get("style", "")
+                    style = style.replace("display: block", "display: inline")
+                    img["style"] = style
                 content_html = "".join(str(c) for c in content_div.children)
                 content_images = extract_images(content_div)
             else:
@@ -275,7 +296,14 @@ def parse_explanations_file(html_content: str) -> dict[int, str]:
         right = row.find("div", class_="right")
         if left and right:
             number = int(left.get_text(strip=True))
-            exp_parts = [str(p) for p in right.find_all("p")]
+            exp_parts = []
+            for p in right.find_all("p"):
+                # All images should display inline with text
+                for img in p.find_all("img"):
+                    style = img.get("style", "")
+                    style = style.replace("display: block", "display: inline")
+                    img["style"] = style
+                exp_parts.append(str(p))
             explanations[number] = "\n".join(exp_parts)
 
     return explanations

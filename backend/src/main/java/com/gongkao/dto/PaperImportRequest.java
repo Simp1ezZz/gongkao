@@ -12,7 +12,7 @@ public class PaperImportRequest {
         private String title;
         private String category;
         private Integer year;
-        private Integer regionId;
+        private String regionName;
         private Integer rating;
     }
 

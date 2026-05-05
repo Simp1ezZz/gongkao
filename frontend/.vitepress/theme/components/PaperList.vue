@@ -4,12 +4,12 @@
     <template v-if="mode === 'bank'">
       <!-- 地区筛选：pill 按钮 -->
       <div class="filter-tags">
-        <button :class="['filter-tag', { active: !filters.regionId }]"
+        <button :class="['filter-tag', { active: !filters.regionName }]"
                 @click="selectRegion(null)">全部</button>
-        <button v-for="r in regions" :key="r.id"
-                :class="['filter-tag', { active: filters.regionId === r.id }]"
-                @click="selectRegion(r.id)">
-          {{ r.name }}
+        <button v-for="name in regions" :key="name"
+                :class="['filter-tag', { active: filters.regionName === name }]"
+                @click="selectRegion(name)">
+          {{ name }}
         </button>
       </div>
 
@@ -77,8 +77,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { paperApi, regionApi } from '../utils/api.js'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { paperApi } from '../utils/api.js'
 import Empty from './Empty.vue'
 
 const props = defineProps({
@@ -95,7 +95,6 @@ const modules = [
   { name: '政治理论', emoji: '🏛️', desc: '马克思主义、毛泽东思想、中国特色社会主义', value: '政治理论' },
 ]
 
-const regions = ref([])
 const papers = ref([])
 const loading = ref(false)
 const loadingMore = ref(false)
@@ -105,14 +104,26 @@ const total = ref(0)
 const customCounts = reactive({})
 
 const filters = ref({
-  regionId: null,
+  regionName: null,
   module: ''
+})
+
+// 从已加载的试卷中聚合去重的地区列表
+const regions = computed(() => {
+  const set = new Set()
+  papers.value.forEach(p => { if (p.regionName) set.add(p.regionName) })
+  // 总是包含已知的常见地区
+  return [...set]
 })
 
 // --- 题库模式 ---
 
-function selectRegion(id) {
-  filters.value.regionId = id
+function selectRegion(name) {
+  if (name === null) {
+    filters.value.regionName = null
+  } else {
+    filters.value.regionName = filters.value.regionName === name ? null : name
+  }
   page.value = 1
   papers.value = []
   loadPapers()
@@ -123,7 +134,7 @@ async function loadPapers() {
   try {
     const params = {
       category: props.category,
-      regionId: filters.value.regionId,
+      regionName: filters.value.regionName,
       page: page.value,
       pageSize
     }
@@ -149,7 +160,7 @@ async function loadMore() {
   try {
     const params = {
       category: props.category,
-      regionId: filters.value.regionId,
+      regionName: filters.value.regionName,
       page: page.value,
       pageSize
     }
@@ -213,19 +224,7 @@ async function startSpecial(moduleName, count) {
 
 // --- 公共 ---
 
-async function loadRegions() {
-  try {
-    const res = await regionApi.list()
-    if (res.success) {
-      regions.value = res.data
-    }
-  } catch (e) {
-    console.error('加载地区失败', e)
-  }
-}
-
 onMounted(() => {
-  loadRegions()
   if (props.mode === 'bank') {
     loadPapers()
   }

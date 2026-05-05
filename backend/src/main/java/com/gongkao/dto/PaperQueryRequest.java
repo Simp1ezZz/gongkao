@@ -5,7 +5,7 @@ import lombok.Data;
 @Data
 public class PaperQueryRequest {
     private String category;
-    private Integer regionId;
+    private String regionName;
     private Integer page = 1;
     private Integer pageSize = 20;
 }

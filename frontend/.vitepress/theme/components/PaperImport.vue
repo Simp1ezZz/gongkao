@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { importApi, regionApi } from '../utils/api.js'
+import { importApi } from '../utils/api.js'
 
 const step = ref(1)
 const loading = ref(false)
@@ -11,7 +11,6 @@ const tempId = ref('')
 const metadata = ref({})
 
 const parsedData = ref(null)
-const regions = ref([])
 const loadingMsg = ref('')
 const progressWidth = ref('0%')
 
@@ -40,8 +39,6 @@ async function handleUpload() {
     loadingMsg.value = '正在解析试卷结构...'
     progressWidth.value = '40%'
     step.value = 2
-    const regionRes = await regionApi.list()
-    regions.value = regionRes.data || regionRes
     loadingMsg.value = '正在下载图片并生成预览...'
     progressWidth.value = '60%'
     await handleParse()
@@ -67,16 +64,6 @@ async function handleParse() {
   }
 }
 
-function getRegionId() {
-  if (!metadata.value.region_name || !regions.value.length) return null
-  const match = regions.value.find(r =>
-    r.name.includes(metadata.value.region_name) ||
-    metadata.value.region_name.includes(r.name) ||
-    (metadata.value.region_name === '国考' && r.name === '国家')
-  )
-  return match ? match.id : null
-}
-
 async function handleConfirm() {
   loading.value = true
   error.value = ''
@@ -85,8 +72,11 @@ async function handleConfirm() {
   try {
     const payload = {
       metadata: {
-        ...metadata.value,
-        regionId: getRegionId(),
+        title: metadata.value.title,
+        category: metadata.value.category,
+        year: metadata.value.year,
+        regionName: metadata.value.region_name,
+        rating: metadata.value.rating,
       },
       sections: parsedData.value.sections,
       materialGroups: parsedData.value.materialGroups || [],

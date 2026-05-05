@@ -31,15 +31,13 @@ CREATE TABLE paper (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     title           VARCHAR(500) NOT NULL,
     category        ENUM('行测', '申论') NOT NULL,
-    region_id       INT DEFAULT NULL COMMENT 'NULL=不限地区',
+    region_name     VARCHAR(50) DEFAULT '' COMMENT '地区名称: 国考/北京/上海/...',
     rating          TINYINT DEFAULT 0 COMMENT '难度星级1-5',
     question_count  INT NOT NULL DEFAULT 0 COMMENT '冗余,加速查询',
     year            INT DEFAULT NULL,
     created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_category (category),
-    INDEX idx_region (region_id),
-    INDEX idx_category_region (category, region_id),
-    FOREIGN KEY (region_id) REFERENCES region(id)
+    INDEX idx_region_name (region_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 4. 材料组
