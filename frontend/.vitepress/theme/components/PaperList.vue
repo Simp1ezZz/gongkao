@@ -90,6 +90,7 @@ async function loadPapers() {
   try {
     if (props.mode === 'special') {
       if (!filters.value.module) {
+        questions.value = []
         papers.value = []
         total.value = 0
         return

@@ -51,7 +51,7 @@
       <div v-if="hasOptions" class="options">
         <div v-for="opt in parsedOptions" :key="opt.label"
              class="option-item"
-             :class="{ selected: answers[currentQuestion.id] === opt.label }"
+             :class="{ selected: isOptionSelected(opt.label) }"
              @click="selectAnswer(opt.label)">
           <span class="option-label">{{ opt.label }}.</span>
           <span class="option-text">{{ opt.text }}</span>
@@ -211,8 +211,26 @@ function formatTime(seconds) {
 
 function selectAnswer(label) {
   if (result.value) return
-  answers.value[currentQuestion.value.id] = label
+  const qId = currentQuestion.value.id
+  if (currentQuestion.value.type === 'multi_choice') {
+    const current = answers.value[qId] || ''
+    const selected = new Set(current ? current.split(',') : [])
+    if (selected.has(label)) selected.delete(label)
+    else selected.add(label)
+    answers.value[qId] = [...selected].sort().join(',')
+  } else {
+    answers.value[qId] = label
+  }
   if (session.value) debouncedSave()
+}
+
+function isOptionSelected(label) {
+  const ans = answers.value[currentQuestion.value.id]
+  if (!ans) return false
+  if (currentQuestion.value.type === 'multi_choice') {
+    return ans.split(',').includes(label)
+  }
+  return ans === label
 }
 
 function prevQuestion() {
@@ -334,7 +352,7 @@ async function init() {
     if (paperId) {
       // 题库模式：通过 paperId 加载整张试卷
       const detailRes = await paperApi.getDetail(paperId)
-      if (!detailRes.success) return
+      if (!detailRes.success) { loaded.value = true; return }
       paperDetail.value = detailRes.data
       questions.value = detailRes.data.questions || []
       materials.value = detailRes.data.materials || []
