@@ -2,16 +2,16 @@ package com.gongkao.service;
 
 import com.gongkao.dto.*;
 import com.gongkao.entity.Question;
+import com.gongkao.entity.PracticeSession;
 import com.gongkao.entity.UserAnswer;
+import com.gongkao.mapper.PracticeSessionMapper;
 import com.gongkao.mapper.QuestionMapper;
 import com.gongkao.mapper.UserAnswerMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,35 +20,27 @@ public class AnswerService {
 
     private final UserAnswerMapper userAnswerMapper;
     private final QuestionMapper questionMapper;
+    private final PracticeSessionMapper sessionMapper;
 
     @Transactional
     public BatchAnswerResultVO batchSubmit(Long userId, BatchAnswerRequest req) {
         List<BatchAnswerRequest.AnswerItem> items = req.getAnswers();
-        if (items == null || items.isEmpty()) {
-            BatchAnswerResultVO result = new BatchAnswerResultVO();
-            result.setSessionId(req.getSessionId());
-            result.setTotalQuestions(0);
-            result.setCorrectCount(0);
-            result.setWrongCount(0);
-            result.setAccuracy(0);
-            result.setQuestions(List.of());
-            return result;
-        }
+        if (items == null) items = List.of();
 
-        List<Long> questionIds = items.stream()
+        Set<Long> answeredIds = items.stream()
                 .map(BatchAnswerRequest.AnswerItem::getQuestionId)
-                .collect(Collectors.toList());
+                .collect(Collectors.toSet());
 
-        List<Question> questions = questionMapper.selectBatchIds(questionIds);
-        Map<Long, Question> questionMap = questions.stream()
+        Map<Long, Question> answeredQuestionMap = answeredIds.isEmpty() ? Map.of()
+                : questionMapper.selectBatchIds(answeredIds).stream()
                 .collect(Collectors.toMap(Question::getId, q -> q));
 
         int correctCount = 0;
         int wrongCount = 0;
-        List<QuestionWithAnswerVO> resultQuestions = new ArrayList<>();
+        Map<Long, QuestionWithAnswerVO> resultMap = new LinkedHashMap<>();
 
         for (BatchAnswerRequest.AnswerItem item : items) {
-            Question question = questionMap.get(item.getQuestionId());
+            Question question = answeredQuestionMap.get(item.getQuestionId());
             if (question == null) continue;
 
             Boolean isCorrect = null;
@@ -76,20 +68,39 @@ public class AnswerService {
             ua.setIsCorrect(isCorrect);
             userAnswerMapper.insert(ua);
 
-            resultQuestions.add(QuestionWithAnswerVO.from(question, userAns, isCorrect));
+            resultMap.put(question.getId(), QuestionWithAnswerVO.from(question, userAns, isCorrect));
         }
 
-        int total = items.size();
+        // 通过 session 获取 paperId，查出试卷所有题目（含未答题）
+        Long paperId = null;
+        if (req.getSessionId() != null) {
+            PracticeSession session = sessionMapper.selectById(req.getSessionId());
+            if (session != null) paperId = session.getPaperId();
+        }
+
+        int totalQuestions;
+        if (paperId != null) {
+            List<Question> allQuestions = questionMapper.selectByPaperId(paperId);
+            totalQuestions = allQuestions.size();
+            for (Question q : allQuestions) {
+                if (!resultMap.containsKey(q.getId())) {
+                    resultMap.put(q.getId(), QuestionWithAnswerVO.from(q, null, null));
+                }
+            }
+        } else {
+            totalQuestions = items.size();
+        }
+
         int graded = correctCount + wrongCount;
         double accuracy = graded > 0 ? (double) correctCount / graded * 100 : 0;
 
         BatchAnswerResultVO result = new BatchAnswerResultVO();
         result.setSessionId(req.getSessionId());
-        result.setTotalQuestions(total);
+        result.setTotalQuestions(totalQuestions);
         result.setCorrectCount(correctCount);
         result.setWrongCount(wrongCount);
         result.setAccuracy(Math.round(accuracy * 100.0) / 100.0);
-        result.setQuestions(resultQuestions);
+        result.setQuestions(new ArrayList<>(resultMap.values()));
         return result;
     }
 
