@@ -71,7 +71,7 @@
             </span>
             <span class="analysis-toggle">{{ expandedSet.has(currentIndex) ? '收起' : '展开' }}</span>
           </div>
-          <div class="analysis-body">
+          <div class="analysis-body" @click="!expandedSet.has(currentIndex) && toggleAnalysis(currentIndex)">
             <p><strong>正确答案：</strong>{{ currentResult.answer }}</p>
             <p><strong>你的答案：</strong>{{ currentResult.userAnswer || '未作答' }}</p>
             <div v-if="currentResult.explanation">
@@ -816,7 +816,7 @@ onUnmounted(() => {
 }
 .analysis-body:not(.analysis-section.expanded .analysis-body)::after {
   content: ''; position: absolute; bottom: 0; left: 0; right: 0;
-  height: 40px;
+  height: 40px; cursor: pointer;
   background: linear-gradient(transparent, var(--vp-c-bg-soft));
 }
 .analysis-body p { margin: 6px 0; }
