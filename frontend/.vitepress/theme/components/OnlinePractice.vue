@@ -44,7 +44,7 @@
                  :class="{ selected: isOptionSelected(opt.label) }"
                  @click="selectAnswer(opt.label)">
               <span class="option-label">{{ opt.label }}.</span>
-              <span class="option-text">{{ opt.text }}</span>
+              <span class="option-body" v-html="opt.text"></span>
             </div>
           </div>
 
@@ -618,7 +618,6 @@ onUnmounted(() => {
 }
 .options { display: flex; flex-direction: column; gap: 10px; }
 .option-item {
-  display: flex; align-items: flex-start; gap: 8px;
   padding: 12px 14px; border: 1px solid var(--vp-c-divider);
   border-radius: 8px; cursor: pointer; transition: all 0.2s;
 }
@@ -626,7 +625,11 @@ onUnmounted(() => {
 .option-item.selected {
   border-color: var(--vp-c-brand); background: var(--vp-c-brand-dimm);
 }
-.option-label { font-weight: 600; min-width: 24px; }
+.option-label { font-weight: 600; margin-right: 4px; }
+.option-body { line-height: 1.6; }
+.option-body img { max-width: 200px; max-height: 80px; vertical-align: middle; }
+.option-body img[flag="tex"] { display: inline !important; }
+.option-image { max-width: 200px; max-height: 80px; vertical-align: middle; }
 .fill-blank input {
   width: 100%; padding: 10px 12px; border: 1px solid var(--vp-c-divider);
   border-radius: 6px; font-size: 14px; background: var(--vp-c-bg);

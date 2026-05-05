@@ -111,6 +111,7 @@ async def parse_files(req: ParseRequest):
             q.content = replace_urls_in_html(q.content, url_map)
             q.explanation = replace_urls_in_html(q.explanation, url_map)
             for opt in q.options:
+                opt.text = replace_urls_in_html(opt.text, url_map)
                 if opt.image and opt.image in url_map:
                     opt.image = f"/api/files/serve/{url_map[opt.image]}"
             q.images = [f"/api/files/serve/{url_map[u]}" for u in q.images if u in url_map]

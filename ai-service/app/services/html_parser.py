@@ -107,10 +107,28 @@ def parse_option_div(div: Tag) -> OptionItem:
     match = re.match(r"^([A-F])[、.:：]\s*(.*)", text, re.DOTALL)
     if match:
         label = match.group(1)
-        option_text = match.group(2).strip()
     else:
         label = ""
-        option_text = text
+
+    # LaTeX formula images (flag="tex") should be inline
+    for img_tag in div.find_all("img", attrs={"flag": "tex"}):
+        style = img_tag.get("style", "")
+        style = style.replace("display: block", "display: inline")
+        img_tag["style"] = style
+
+    inner_parts = []
+    for child in div.children:
+        if isinstance(child, str):
+            inner_parts.append(child)
+        elif isinstance(child, Tag):
+            inner_parts.append(str(child))
+
+    inner_html = "".join(inner_parts)
+    # Remove the label prefix (A. / A、 etc.) from HTML
+    if label:
+        inner_html = re.sub(r"^[A-F][、.:：]\s*", "", inner_html, count=1)
+
+    option_text = inner_html.strip()
 
     img = ""
     img_tag = div.find("img")
@@ -165,6 +183,7 @@ def parse_question_row(row: Tag) -> tuple[int, str, list[OptionItem], list[str]]
                 content_tags.append(str(child))
 
         content = "\n".join(content_tags)
+        content = re.sub(r"<u>(\s{1,3})</u>", "<u>___</u>", content)
 
     return number, content, options, images
 
