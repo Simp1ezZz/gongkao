@@ -27,27 +27,27 @@
     <!-- Step 1: Upload -->
     <div v-if="step === 1" class="qi-upload">
       <div class="qi-form-grid">
-        <div class="qi-upload-zone" @dragover.prevent @drop.prevent="onDropQuestion">
+        <div class="qi-upload-zone" @click="qFileInput.click()" @dragover.prevent @drop.prevent="onDropQuestion">
           <input ref="qFileInput" type="file" accept=".pdf" hidden @change="onQuestionFileChange" />
-          <div v-if="!questionFile" class="qi-upload-placeholder" @click="qFileInput.click()">
+          <div v-if="!questionFile" class="qi-upload-placeholder">
             <div class="qi-upload-icon">📄</div>
             <p>点击或拖拽上传题目文件</p>
             <span class="qi-upload-hint">支持 PDF 格式</span>
           </div>
-          <div v-else class="qi-upload-selected" @click="qFileInput.click()">
+          <div v-else class="qi-upload-selected">
             <p>{{ questionFile.name }}</p>
             <span>{{ formatSize(questionFile.size) }}</span>
           </div>
         </div>
 
-        <div class="qi-upload-zone" @dragover.prevent @drop.prevent="onDropAnswer">
+        <div class="qi-upload-zone" @click="aFileInput.click()" @dragover.prevent @drop.prevent="onDropAnswer">
           <input ref="aFileInput" type="file" accept=".pdf,.docx,.doc" hidden @change="onAnswerFileChange" />
-          <div v-if="!answerFile" class="qi-upload-placeholder" @click="aFileInput.click()">
+          <div v-if="!answerFile" class="qi-upload-placeholder">
             <div class="qi-upload-icon">📝</div>
             <p>点击或拖拽上传答案解析文件</p>
             <span class="qi-upload-hint">支持 PDF / DOCX 格式</span>
           </div>
-          <div v-else class="qi-upload-selected" @click="aFileInput.click()">
+          <div v-else class="qi-upload-selected">
             <p>{{ answerFile.name }}</p>
             <span>{{ formatSize(answerFile.size) }}</span>
           </div>
