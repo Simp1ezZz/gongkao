@@ -195,10 +195,13 @@ def parse_questions_file(html_content: str) -> tuple[ParsedMetadata, list[Parsed
         if sub2title:
             title = sub2title.get_text(strip=True)
             material_group_sort += 1
-            content_div = row.find("div", class_="col-xs-12")
+            # Find the content div: col-xs-12 but NOT the sub2title itself
+            content_div = None
+            for candidate in row.find_all("div", class_="col-xs-12"):
+                if "sub2title" not in candidate.get("class", []):
+                    content_div = candidate
+                    break
             if content_div:
-                for st in content_div.find_all("div", class_="sub2title"):
-                    st.decompose()
                 content_html = "".join(str(c) for c in content_div.children)
                 content_images = extract_images(content_div)
             else:
