@@ -96,32 +96,6 @@
 
       <!-- 右侧：答题卡面板 -->
       <div class="answer-card-wrapper">
-        <!-- 提交后统计（在答题卡外部上方） -->
-        <div v-if="result" class="card-result">
-          <div class="card-result-actions">
-            <button class="btn-ai-sm">🤖 AI 智能分析</button>
-            <a href="/practice/records/" class="link-records">📝 答题记录</a>
-          </div>
-          <div class="card-stats">
-            <div class="cs-item">
-              <span class="cs-value correct">{{ result.correctCount }}</span>
-              <span class="cs-label">正确</span>
-            </div>
-            <div class="cs-item">
-              <span class="cs-value wrong">{{ result.wrongCount }}</span>
-              <span class="cs-label">错误</span>
-            </div>
-            <div class="cs-item">
-              <span class="cs-value">{{ unansweredCount }}</span>
-              <span class="cs-label">未答</span>
-            </div>
-            <div class="cs-item">
-              <span class="cs-value">{{ result.accuracy }}%</span>
-              <span class="cs-label">正确率</span>
-            </div>
-          </div>
-        </div>
-
         <div class="answer-card">
           <div class="card-header">
           <span class="card-title">答题卡</span>
@@ -163,7 +137,32 @@
             </div>
           </div>
         </div>
+        </div>
 
+        <!-- 提交后统计（答题卡下方） -->
+        <div v-if="result" class="card-result">
+          <div class="card-result-actions">
+            <button class="btn-ai-sm">🤖 AI 智能分析</button>
+            <a href="/practice/records/" class="link-records">📝 答题记录</a>
+          </div>
+          <div class="card-stats">
+            <div class="cs-item">
+              <span class="cs-value correct">{{ result.correctCount }}</span>
+              <span class="cs-label">正确</span>
+            </div>
+            <div class="cs-item">
+              <span class="cs-value wrong">{{ result.wrongCount }}</span>
+              <span class="cs-label">错误</span>
+            </div>
+            <div class="cs-item">
+              <span class="cs-value">{{ unansweredCount }}</span>
+              <span class="cs-label">未答</span>
+            </div>
+            <div class="cs-item">
+              <span class="cs-value">{{ result.accuracy }}%</span>
+              <span class="cs-label">正确率</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -887,7 +886,7 @@ onUnmounted(() => {
 .legend-dot.wrong { background: #f56c6c; }
 .card-grid {
   padding: 12px 16px;
-  max-height: calc(100vh - 400px); overflow-y: auto;
+  max-height: calc(100vh - 480px); overflow-y: auto;
 }
 .card-grid::-webkit-scrollbar { width: 4px; }
 .card-grid::-webkit-scrollbar-thumb { background: var(--vp-c-divider); border-radius: 2px; }
@@ -928,7 +927,7 @@ onUnmounted(() => {
 .card-result {
   background: var(--vp-c-bg-soft); border-radius: 10px;
   border: 1px solid var(--vp-c-divider);
-  padding: 12px 16px; margin-bottom: 12px;
+  padding: 12px 16px; margin-top: 12px;
 }
 .card-result-actions {
   display: flex; gap: 10px; margin-bottom: 10px;
