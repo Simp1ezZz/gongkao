@@ -46,13 +46,38 @@ def _match_answers(questions_text: str, answers_text: str) -> dict[int, str]:
     Returns a dict of question_number -> answer_text.
     """
     result: dict[int, str] = {}
-    # Split by "题目N解析：" pattern
-    parts = re.split(r"题目\s*(\d+)\s*解析[：:]", answers_text)
-    # parts: [preamble, num1, text1, num2, text2, ...]
-    for i in range(1, len(parts), 2):
-        qnum = int(parts[i])
-        text = parts[i + 1] if i + 1 < len(parts) else ""
-        result[qnum] = text.strip()
+
+    # Try multiple patterns to match answer sections
+    patterns = [
+        r"题目\s*(\d+)\s*解析[：:]",       # 题目1解析：
+        r"第\s*(\d+)\s*题[：:.\s]",        # 第1题：
+        r"(?:^|\n)\s*(\d{1,3})\s*[\.。．、]\s*[\[【（(]?解析",  # 1.解析 / 1.【解析】
+        r"(?:^|\n)\s*(\d{1,3})\s*[\.。．、]\s*\n\s*【解析】",  # 1.\n【解析】
+    ]
+
+    for pattern in patterns:
+        parts = re.split(pattern, answers_text)
+        if len(parts) > 2:
+            # parts: [preamble, num1, text1, num2, text2, ...]
+            for i in range(1, len(parts), 2):
+                try:
+                    qnum = int(parts[i])
+                except ValueError:
+                    continue
+                text = parts[i + 1] if i + 1 < len(parts) else ""
+                # Only keep if we got substantive text
+                if text.strip():
+                    result[qnum] = text.strip()
+            if result:
+                logger.info("Matched answers using pattern '%s': %d questions", pattern[:30], len(result))
+                return result
+
+    # Fallback: try line-by-line matching for formats like "1.A" or "1、A"
+    for line in answers_text.split("\n"):
+        m = re.match(r"\s*(\d{1,3})\s*[\.。．、:：]\s*([A-Z]+)\s*", line)
+        if m:
+            result[int(m.group(1))] = f"正确答案为{m.group(2)}"
+
     return result
 
 
@@ -104,6 +129,9 @@ async def extract_questions(
     # 3. Match answers to question numbers
     answer_map = _match_answers(q_result.text, a_result.text)
     logger.warning("Matched answers for %d questions", len(answer_map))
+    # Log first few lines of answer text for debugging format
+    answer_preview = a_result.text[:500] if a_result.text else "(empty)"
+    logger.info("Answer file preview: %s", answer_preview)
 
     # 4. For each module, call LLM
     all_questions: list[ParsedQuestion] = []
@@ -123,7 +151,9 @@ async def extract_questions(
             num = int(qn)
             if num in answer_map:
                 module_answer_parts.append(f"题目{num}解析：\n{answer_map[num]}")
-        module_answer_text = "\n\n".join(module_answer_parts) if module_answer_parts else a_result.text
+        module_answer_text = "\n\n".join(module_answer_parts) if module_answer_parts else ""
+        if not module_answer_text:
+            logger.warning("No answers matched for module '%s', extracting questions only", module_name)
 
         if progress_callback:
             await progress_callback(module_name, "extracting", 0)
