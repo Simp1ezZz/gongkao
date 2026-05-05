@@ -143,3 +143,25 @@ export const sessionApi = {
 }
 
 export { api, aiApi, API_BASE, AI_BASE }
+
+// Import API
+export const importApi = {
+  getModels() {
+    return aiApi.get('/import/models')
+  },
+  parse(formData) {
+    return aiApi.post('/import/parse', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600000, // 10 min for LLM processing
+    })
+  },
+  reparseQuestion(formData) {
+    return aiApi.post('/import/reparse-question', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 120000,
+    })
+  },
+  confirmImport(data) {
+    return api.post('/admin/papers/import', data)
+  },
+}
