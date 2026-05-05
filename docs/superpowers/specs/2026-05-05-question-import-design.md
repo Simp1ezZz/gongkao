@@ -412,9 +412,118 @@ katex>=0.16.0
 | 部分题目解析不完整 | 标记warning，人工编辑补全 |
 | MinIO上传失败 | 重试3次，仍失败则返回错误 |
 
+## 多模型配置
+
+### 设计目标
+
+导入时支持动态选择不同的LLM（不同API地址、密钥、模型名），便于：
+- 对比不同模型的解析效果
+- 使用不同价格的模型（Haiku便宜，Sonnet准确）
+- 灵活切换供应商（OpenAI/Claude/DeepSeek/本地部署等）
+
+### 配置存储
+
+在 `ai-service/app/core/config.py` 中扩展多模型配置：
+
+```python
+class ModelConfig(BaseModel):
+    name: str           # 显示名称，如 "DeepSeek-V3"
+    api_url: str        # API端点
+    api_key: str        # API密钥
+    model: str          # 模型标识，如 "deepseek-chat"
+    max_tokens: int     # 最大输出token
+    supports_vision: bool = False  # 是否支持多模态（图片）
+
+class Settings(BaseSettings):
+    # 保留原默认配置（向后兼容）
+    llm_provider: str = "openai-compatible"
+    llm_api_url: str = ""
+    llm_api_key: str = ""
+    llm_model: str = "gpt-4o"
+    llm_max_tokens: int = 4096
+
+    # 多模型配置（JSON字符串，从环境变量读取）
+    llm_models: str = "[]""
+
+    def get_models(self) -> list[ModelConfig]:
+        """解析并返回所有可用模型配置"""
+        models = json.loads(self.llm_models)
+        # 始终包含默认配置作为第一个选项
+        default = ModelConfig(
+            name=f"默认({self.llm_model})",
+            api_url=self.llm_api_url,
+            api_key=self.llm_api_key,
+            model=self.llm_model,
+            max_tokens=self.llm_max_tokens,
+            supports_vision=True
+        )
+        return [default] + [ModelConfig(**m) for m in models]
+```
+
+### 环境变量格式（.env）
+
+```env
+# 默认LLM（向后兼容）
+LLM_API_URL=https://api.openai.com/v1/chat/completions
+LLM_API_KEY=sk-xxx
+LLM_MODEL=gpt-4o
+
+# 多模型配置（JSON数组）
+LLM_MODELS=[
+  {"name":"DeepSeek-V3","api_url":"https://api.deepseek.com/v1/chat/completions","api_key":"sk-xxx","model":"deepseek-chat","max_tokens":8192,"supports_vision":false},
+  {"name":"Claude-Sonnet","api_url":"https://api.anthropic.com/v1/messages","api_key":"sk-ant-xxx","model":"claude-sonnet-4-6","max_tokens":8192,"supports_vision":true},
+  {"name":"Qwen-Max","api_url":"https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions","api_key":"sk-xxx","model":"qwen-max","max_tokens":8192,"supports_vision":true}
+]
+```
+
+### API变更
+
+**`GET /ai/import/models`** — 获取可用模型列表
+```json
+{
+  "models": [
+    {"name": "默认(gpt-4o)", "model": "gpt-4o", "supports_vision": true},
+    {"name": "DeepSeek-V3", "model": "deepseek-chat", "supports_vision": false},
+    {"name": "Claude-Sonnet", "model": "claude-sonnet-4-6", "supports_vision": true}
+  ]
+}
+```
+
+**`POST /ai/import/parse`** 输入新增字段：
+- `model_name`: 选择使用的模型名称（对应LLM_MODELS中的name），不传则用默认模型
+
+### 前端变更
+
+Step 1 上传页面新增：
+- 模型选择下拉框（从 `/ai/import/models` 获取列表）
+- 显示每个模型是否支持图片理解（多模态标记）
+- 高级选项：可临时输入自定义API URL/Key/模型名（用于一次性测试）
+
+### 调用逻辑
+
+```python
+async def call_llm(model_name: str, messages: list, images: list = None):
+    settings = Settings()
+    models = settings.get_models()
+    model = next((m for m in models if m.name == model_name), models[0])
+
+    # 含图片但模型不支持多模态 → 自动降级到默认模型
+    if images and not model.supports_vision:
+        model = models[0]
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            model.api_url,
+            headers={"Authorization": f"Bearer {model.api_key}"},
+            json={"model": model.model, "messages": messages, "max_tokens": model.max_tokens}
+        )
+    return resp.json()
+```
+
 ## 测试策略
 
 1. 用提供的安徽2025行测PDF+答案DOCX作为端到端测试文件
 2. 单元测试：PDF文本提取、DOCX文本提取、模块边界识别、题号匹配
 3. 集成测试：完整导入流程（上传→解析→审核→导入→验证数据库记录）
 4. 边界测试：图片密集的资料分析题、含数学公式的数量关系题
+5. 多模型测试：验证不同模型的调用和自动降级逻辑
