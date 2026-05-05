@@ -828,7 +828,10 @@ onUnmounted(() => {
   background: var(--vp-c-bg-soft); border-radius: 10px;
   border: 1px solid var(--vp-c-divider);
   position: sticky; top: 72px;
+  max-height: calc(100vh - 90px); overflow-y: auto;
 }
+.answer-card::-webkit-scrollbar { width: 4px; }
+.answer-card::-webkit-scrollbar-thumb { background: var(--vp-c-divider); border-radius: 2px; }
 .card-header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 16px; border-bottom: 1px solid var(--vp-c-divider);
