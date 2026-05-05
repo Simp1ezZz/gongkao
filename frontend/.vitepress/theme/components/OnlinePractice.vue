@@ -842,7 +842,7 @@ onUnmounted(() => {
   background: var(--vp-c-bg-soft); border-radius: 10px;
   border: 1px solid var(--vp-c-divider);
   position: sticky; top: 72px;
-  max-height: calc(100vh - 90px); overflow-y: auto;
+  max-height: calc(100vh - 270px); overflow-y: auto;
 }
 .answer-card::-webkit-scrollbar { width: 4px; }
 .answer-card::-webkit-scrollbar-thumb { background: var(--vp-c-divider); border-radius: 2px; }
