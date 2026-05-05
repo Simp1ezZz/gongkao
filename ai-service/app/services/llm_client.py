@@ -144,15 +144,20 @@ async def call_llm(
         return json.loads(content)
     except json.JSONDecodeError as e:
         logger.warning("JSON parse failed: %s, attempting repair", e)
-        # Attempt 1: fix unescaped backslashes
         import re
-        repaired = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', content)
+        # Attempt 1: fix unescaped quotes inside string values
         try:
+            repaired = _fix_unescaped_quotes(content)
             return json.loads(repaired)
         except json.JSONDecodeError:
             pass
-        # Attempt 2: try to find a valid JSON by truncating at last complete object
-        # (handles truncated output from max_tokens limit)
+        # Attempt 2: fix unescaped backslashes
+        try:
+            repaired = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', content)
+            return json.loads(repaired)
+        except json.JSONDecodeError:
+            pass
+        # Attempt 3: try to find a valid JSON by truncating at last complete object
         for i in range(len(content) - 1, len(content) // 2, -1):
             if content[i] == '}':
                 try:
@@ -164,6 +169,38 @@ async def call_llm(
                     continue
         logger.error("Failed to parse LLM JSON response (first 500 chars): %s", content[:500])
         raise
+
+
+def _fix_unescaped_quotes(s: str) -> str:
+    """Escape unescaped double quotes inside JSON string values."""
+    result = []
+    i = 0
+    in_string = False
+    while i < len(s):
+        c = s[i]
+        if in_string:
+            if c == '\\' and i + 1 < len(s):
+                result.append(c)
+                result.append(s[i + 1])
+                i += 2
+                continue
+            if c == '"':
+                rest = s[i + 1:].lstrip()
+                if not rest or rest[0] in ',:]}':
+                    result.append(c)
+                    in_string = False
+                else:
+                    result.append('\\"')
+            else:
+                result.append(c)
+        else:
+            if c == '"':
+                in_string = True
+                result.append(c)
+            else:
+                result.append(c)
+        i += 1
+    return ''.join(result)
 
 
 async def get_available_models() -> list[dict]:
