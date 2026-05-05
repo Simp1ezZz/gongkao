@@ -18,6 +18,15 @@
     <div class="practice-layout">
       <!-- 左侧：题目区域 -->
       <div class="question-area">
+        <!-- 暂停遮罩 -->
+        <div v-if="pausedLocally" class="pause-overlay" @click="togglePause">
+          <div class="pause-content">
+            <span class="pause-icon">⏸️</span>
+            <span class="pause-text">已暂停</span>
+            <span class="pause-hint">点击此处继续答题</span>
+          </div>
+        </div>
+
         <!-- 材料区域 -->
         <div v-if="currentMaterial" class="material-panel">
           <h3>{{ currentMaterial.title }}</h3>
@@ -237,6 +246,10 @@ function selectAnswer(label) {
     answers.value[qId] = [...selected].sort().join(',')
   } else {
     answers.value[qId] = label
+    // 单选题：选择后自动跳转下一题
+    if (currentIndex.value < questions.value.length - 1) {
+      setTimeout(() => { currentIndex.value++ }, 300)
+    }
   }
   if (session.value) debouncedSave()
 }
@@ -528,7 +541,20 @@ onUnmounted(() => {
 }
 
 /* === 左侧题目区 === */
-.question-area { flex: 1; min-width: 0; }
+.question-area { flex: 1; min-width: 0; position: relative; }
+.pause-overlay {
+  position: absolute; inset: 0; z-index: 10;
+  background: rgba(0, 0, 0, 0.6); border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.pause-content {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  color: #fff;
+}
+.pause-icon { font-size: 48px; }
+.pause-text { font-size: 20px; font-weight: 600; }
+.pause-hint { font-size: 14px; opacity: 0.8; }
 .material-panel {
   padding: 16px; background: var(--vp-c-bg-soft);
   border-radius: 8px; margin-bottom: 16px;
