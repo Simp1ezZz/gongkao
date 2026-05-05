@@ -533,8 +533,16 @@ async function init() {
   }
 }
 
-onMounted(init)
+function saveBeforeUnload() {
+  if (!result.value) saveLocalState()
+}
+
+onMounted(() => {
+  window.addEventListener('beforeunload', saveBeforeUnload)
+  init()
+})
 onUnmounted(() => {
+  window.removeEventListener('beforeunload', saveBeforeUnload)
   stopTimer()
   if (!result.value) {
     saveLocalState()
