@@ -30,12 +30,12 @@
         <!-- 材料区域 -->
         <div v-if="currentMaterial" class="material-panel">
           <h3>{{ currentMaterial.title }}</h3>
-          <div class="material-content" v-html="currentMaterial.content"></div>
+          <div class="material-content" v-html="renderLatex(currentMaterial.content)"></div>
         </div>
 
         <!-- 题目 -->
         <div class="question-panel" v-if="currentQuestion">
-          <h3 class="question-content" v-html="currentQuestion.content"></h3>
+          <h3 class="question-content" v-html="renderLatex(currentQuestion.content)"></h3>
 
           <!-- 选项（选择题） -->
           <div v-if="hasOptions" class="options">
@@ -148,14 +148,14 @@
             <span v-else-if="q.isCorrect === false" class="badge-wrong">错误</span>
             <span v-else class="badge-pending">待批改</span>
           </div>
-          <div class="rq-content" v-html="q.content"></div>
+          <div class="rq-content" v-html="renderLatex(q.content)"></div>
           <div class="rq-answer">
             <p>你的答案：<strong>{{ q.userAnswer || '未作答' }}</strong></p>
             <p>正确答案：<strong>{{ q.answer }}</strong></p>
           </div>
           <div v-if="q.explanation" class="rq-explanation">
             <h4>解析</h4>
-            <div v-html="q.explanation"></div>
+            <div v-html="renderLatex(q.explanation)"></div>
           </div>
         </div>
       </div>
@@ -167,6 +167,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { paperApi, sessionApi } from '../utils/api.js'
+import { renderLatex } from '../utils/latex.js'
 import Modal from './Modal.vue'
 import Login from './Login.vue'
 

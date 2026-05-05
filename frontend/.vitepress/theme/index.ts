@@ -1,4 +1,5 @@
 import DefaultTheme from 'vitepress/theme'
+import 'katex/dist/katex.min.css'
 import Login from './components/Login.vue'
 import PaperList from './components/PaperList.vue'
 import OnlinePractice from './components/OnlinePractice.vue'
