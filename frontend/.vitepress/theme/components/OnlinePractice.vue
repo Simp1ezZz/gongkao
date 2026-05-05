@@ -1,72 +1,99 @@
 <template>
   <div class="online-practice" v-if="loaded">
-    <!-- 顶部信息栏 -->
-    <div class="top-bar">
-      <div class="paper-info">
-        <h2>{{ paperDetail.title }}</h2>
-        <span class="meta">
-          {{ paperDetail.questionCount }}题 |
-          {{ paperDetail.year }}年 |
-          {{ paperDetail.regionName || '通用' }}
-        </span>
-      </div>
-      <div class="timer" v-if="session">
-        <span class="time">{{ formatTime(timeElapsed) }}</span>
-        <button v-if="session?.status === 'ongoing'" class="btn-pause"
-                @click="togglePause">暂停</button>
-        <button v-if="session?.status === 'paused'" class="btn-resume"
-                @click="togglePause">继续</button>
-      </div>
-    </div>
-
     <!-- 登录弹窗 -->
     <Modal v-if="showLoginModal" @close="showLoginModal = false">
       <Login inline @login-success="onLoginSuccess" />
     </Modal>
 
-    <!-- 材料区域 -->
-    <div v-if="currentMaterial" class="material-panel">
-      <h3>{{ currentMaterial.title }}</h3>
-      <div class="material-content" v-html="currentMaterial.content"></div>
+    <!-- 顶部栏 -->
+    <div class="top-bar">
+      <a href="/题库/" class="btn-back" title="返回题库">←</a>
+      <h1 class="paper-title">{{ paperDetail.title }}</h1>
+      <button class="btn-submit-top" @click="confirmSubmit">
+        <span class="submit-icon">📤</span> 提交试卷
+      </button>
     </div>
 
-    <!-- 题目区域 -->
-    <div class="question-panel" v-if="currentQuestion">
-      <div class="question-header">
-        <span class="question-index">{{ currentIndex + 1 }} / {{ questions.length }}</span>
-        <span class="question-module">{{ currentQuestion.module }}</span>
-        <span class="question-type">{{ typeLabel(currentQuestion.type) }}</span>
-      </div>
+    <!-- 双栏布局 -->
+    <div class="practice-layout">
+      <!-- 左侧：题目区域 -->
+      <div class="question-area">
+        <!-- 材料区域 -->
+        <div v-if="currentMaterial" class="material-panel">
+          <h3>{{ currentMaterial.title }}</h3>
+          <div class="material-content" v-html="currentMaterial.content"></div>
+        </div>
 
-      <div class="question-content" v-html="currentQuestion.content"></div>
+        <!-- 题目 -->
+        <div class="question-panel" v-if="currentQuestion">
+          <h3 class="question-content" v-html="currentQuestion.content"></h3>
 
-      <!-- 选项（选择题） -->
-      <div v-if="hasOptions" class="options">
-        <div v-for="opt in parsedOptions" :key="opt.label"
-             class="option-item"
-             :class="{ selected: isOptionSelected(opt.label) }"
-             @click="selectAnswer(opt.label)">
-          <span class="option-label">{{ opt.label }}.</span>
-          <span class="option-text">{{ opt.text }}</span>
+          <!-- 选项（选择题） -->
+          <div v-if="hasOptions" class="options">
+            <div v-for="opt in parsedOptions" :key="opt.label"
+                 class="option-item"
+                 :class="{ selected: isOptionSelected(opt.label) }"
+                 @click="selectAnswer(opt.label)">
+              <span class="option-label">{{ opt.label }}.</span>
+              <span class="option-text">{{ opt.text }}</span>
+            </div>
+          </div>
+
+          <!-- 填空题 -->
+          <div v-if="currentQuestion.type === 'fill_blank'" class="fill-blank">
+            <input v-model="answers[currentQuestion.id]" placeholder="请输入答案" />
+          </div>
+        </div>
+
+        <!-- 翻页按钮 -->
+        <div class="nav-buttons">
+          <button :disabled="currentIndex <= 0" @click="prevQuestion">← 上一题</button>
+          <button v-if="currentIndex < questions.length - 1" @click="nextQuestion">下一题 →</button>
         </div>
       </div>
 
-      <!-- 填空题 -->
-      <div v-if="currentQuestion.type === 'fill_blank'" class="fill-blank">
-        <input v-model="answers[currentQuestion.id]" placeholder="请输入答案" />
-      </div>
-    </div>
+      <!-- 右侧：答题卡面板 -->
+      <div class="answer-card">
+        <div class="card-header">
+          <span class="card-title">答题卡</span>
+          <span class="card-progress">{{ answeredCount }} / {{ questions.length }}</span>
+        </div>
 
-    <!-- 底部导航 -->
-    <div class="bottom-bar">
-      <button :disabled="currentIndex <= 0" @click="prevQuestion">上一题</button>
-      <div class="progress">
-        <div class="progress-bar" :style="{ width: progressPercent + '%' }"></div>
+        <div class="card-controls">
+          <button v-if="session?.status === 'ongoing' || (!session && timerRunning)"
+                  class="btn-pause" @click="togglePause">⏸️ 暂停</button>
+          <button v-else-if="session?.status === 'paused' || pausedLocally"
+                  class="btn-resume" @click="togglePause">▶️ 继续</button>
+          <div class="timer-display">
+            <span>⏱️</span>
+            <span class="timer-value">{{ formatTime(timeElapsed) }}</span>
+          </div>
+        </div>
+
+        <div class="card-legend">
+          <span class="legend-item"><span class="legend-dot current"></span>当前</span>
+          <span class="legend-item"><span class="legend-dot answered"></span>已答</span>
+        </div>
+
+        <div class="card-grid">
+          <div v-for="group in moduleGroups" :key="group.module" class="module-group">
+            <div class="module-label">
+              {{ group.module }}
+              <span class="module-range">{{ group.items[0].index + 1 }}-{{ group.items[group.items.length - 1].index + 1 }}</span>
+            </div>
+            <div class="number-grid">
+              <button v-for="item in group.items" :key="item.index"
+                      :class="['num-btn', {
+                        current: item.index === currentIndex,
+                        answered: answers[item.question.id] != null && item.index !== currentIndex
+                      }]"
+                      @click="jumpToQuestion(item.index)">
+                {{ item.index + 1 }}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-      <span class="answered-count">{{ answeredCount }} / {{ questions.length }} 已答</span>
-      <button v-if="currentIndex < questions.length - 1"
-              @click="nextQuestion">下一题</button>
-      <button v-else class="btn-submit" @click="confirmSubmit">提交试卷</button>
     </div>
 
     <!-- 确认提交弹窗 -->
@@ -102,7 +129,6 @@
         </div>
       </div>
 
-      <!-- 逐题解析 -->
       <div class="result-questions">
         <div v-for="(q, idx) in result.questions" :key="q.id"
              class="result-question"
@@ -146,6 +172,8 @@ const timeElapsed = ref(0)
 const result = ref(null)
 const showSubmitModal = ref(false)
 const showLoginModal = ref(false)
+const timerRunning = ref(false)
+const pausedLocally = ref(false)
 
 let timer = null
 let saveTimer = null
@@ -166,9 +194,7 @@ const currentMaterial = computed(() => {
 const parsedOptions = computed(() => {
   const q = currentQuestion.value
   if (!q || !q.options) return []
-  try {
-    return JSON.parse(q.options)
-  } catch { return [] }
+  try { return JSON.parse(q.options) } catch { return [] }
 })
 
 const hasOptions = computed(() => {
@@ -178,29 +204,26 @@ const hasOptions = computed(() => {
 
 const answeredCount = computed(() => Object.keys(answers.value).length)
 
-const progressPercent = computed(() =>
-  questions.value.length > 0
-    ? Math.round((answeredCount.value / questions.value.length) * 100)
-    : 0
-)
-
-function typeLabel(type) {
-  const map = {
-    single_choice: '单选题',
-    multi_choice: '多选题',
-    fill_blank: '填空题',
-    essay: '主观题'
-  }
-  return map[type] || type
-}
+const moduleGroups = computed(() => {
+  const groups = []
+  let current = null
+  questions.value.forEach((q, idx) => {
+    if (!current || current.module !== q.module) {
+      current = { module: q.module, items: [] }
+      groups.push(current)
+    }
+    current.items.push({ index: idx, question: q })
+  })
+  return groups
+})
 
 function formatTime(seconds) {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
   const s = seconds % 60
   return h > 0
-    ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-    : `${m}:${String(s).padStart(2,'0')}`
+    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    : `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 function selectAnswer(label) {
@@ -235,8 +258,18 @@ function nextQuestion() {
   if (currentIndex.value < questions.value.length - 1) currentIndex.value++
 }
 
+function jumpToQuestion(index) {
+  currentIndex.value = index
+}
+
 async function togglePause() {
-  if (!session.value) return
+  // 未登录本地暂停
+  if (!session.value) {
+    pausedLocally.value = !pausedLocally.value
+    if (pausedLocally.value) stopTimer()
+    else startTimer()
+    return
+  }
   const newStatus = session.value.status === 'ongoing' ? 'paused' : 'ongoing'
   try {
     const res = await sessionApi.update(session.value.id, {
@@ -276,10 +309,21 @@ async function saveProgress() {
 
 function confirmSubmit() {
   if (!localStorage.getItem('token')) {
+    // 保存当前状态以便登录后恢复
+    saveLocalState()
     showLoginModal.value = true
     return
   }
   showSubmitModal.value = true
+}
+
+function saveLocalState() {
+  const state = {
+    answers: answers.value,
+    currentIndex: currentIndex.value,
+    timeElapsed: timeElapsed.value
+  }
+  localStorage.setItem('practiceState', JSON.stringify(state))
 }
 
 async function onLoginSuccess() {
@@ -292,7 +336,7 @@ async function onLoginSuccess() {
     const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
     if (sessionRes.success) {
       session.value = sessionRes.data
-      // 合并服务端已有进度
+      // 合并本地已有答案（本地优先）
       if (sessionRes.data.answers) {
         try {
           const savedAnswers = JSON.parse(sessionRes.data.answers)
@@ -303,7 +347,16 @@ async function onLoginSuccess() {
           })
         } catch {}
       }
-      if (sessionRes.data.status === 'ongoing') startTimer()
+      // 同步本地计时器到服务端
+      await sessionApi.update(sessionRes.data.id, {
+        timeElapsed: timeElapsed.value,
+        currentIndex: currentIndex.value,
+        answers: JSON.stringify(
+          Object.entries(answers.value).map(([qId, ans]) => ({
+            questionId: Number(qId), answer: ans
+          }))
+        )
+      })
     }
   } catch (e) {
     console.warn('创建会话失败', e)
@@ -319,7 +372,6 @@ async function submitExam() {
       questionId: Number(qId), answer: ans
     }))
 
-    // 题库模式：先提交会话再提交答案
     if (session.value) {
       await sessionApi.submit(session.value.id, {
         timeElapsed: timeElapsed.value,
@@ -341,12 +393,14 @@ async function submitExam() {
 
 function startTimer() {
   stopTimer()
+  timerRunning.value = true
   timer = setInterval(() => { timeElapsed.value++ }, 1000)
 }
 
 function stopTimer() {
   if (timer) { clearInterval(timer); timer = null }
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
+  timerRunning.value = false
 }
 
 async function init() {
@@ -361,14 +415,12 @@ async function init() {
 
   try {
     if (paperId) {
-      // 题库模式：通过 paperId 加载整张试卷
       const detailRes = await paperApi.getDetail(paperId)
       if (!detailRes.success) { loaded.value = true; return }
       paperDetail.value = detailRes.data
       questions.value = detailRes.data.questions || []
       materials.value = detailRes.data.materials || []
     } else {
-      // 专项练习模式：题目数据由 PaperList 通过 localStorage 传递
       paperDetail.value = {
         title: '专项练习',
         questionCount: questionIds.split(',').length,
@@ -391,32 +443,42 @@ async function init() {
       try {
         const state = JSON.parse(savedState)
         if (state.answers) answers.value = state.answers
-        if (state.currentIndex) currentIndex.value = state.currentIndex
-        if (state.timeElapsed) timeElapsed.value = state.timeElapsed
+        if (state.currentIndex != null) currentIndex.value = state.currentIndex
+        if (state.timeElapsed != null) timeElapsed.value = state.timeElapsed
         localStorage.removeItem('practiceState')
       } catch {}
     }
 
-    // 只有题库模式 + 已登录 才创建会话和计时
-    if (!paperId || !localStorage.getItem('token')) return
+    // 始终启动前端计时器（无论是否登录）
+    startTimer()
 
-    try {
-      const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
-      if (sessionRes.success) {
-        session.value = sessionRes.data
-        if (sessionRes.data.answers) {
-          try {
-            const savedAnswers = JSON.parse(sessionRes.data.answers)
-            savedAnswers.forEach(a => { answers.value[a.questionId] = a.answer })
-          } catch {}
+    // 已登录 + paperId 模式：创建/恢复会话
+    if (paperId && localStorage.getItem('token')) {
+      try {
+        const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
+        if (sessionRes.success) {
+          session.value = sessionRes.data
+          if (sessionRes.data.answers) {
+            try {
+              const savedAnswers = JSON.parse(sessionRes.data.answers)
+              // 如果本地没有恢复的状态，用服务端的
+              if (!savedState) {
+                savedAnswers.forEach(a => { answers.value[a.questionId] = a.answer })
+              }
+            } catch {}
+          }
+          if (!savedState) {
+            currentIndex.value = sessionRes.data.currentIndex || 0
+            timeElapsed.value = sessionRes.data.timeElapsed || 0
+          }
+          if (sessionRes.data.status === 'paused') {
+            stopTimer()
+            pausedLocally.value = true
+          }
         }
-        currentIndex.value = sessionRes.data.currentIndex || 0
-        timeElapsed.value = sessionRes.data.timeElapsed || 0
-
-        if (sessionRes.data.status === 'ongoing') startTimer()
+      } catch (e) {
+        console.warn('创建会话失败，切换到浏览模式', e)
       }
-    } catch (e) {
-      console.warn('创建会话失败，切换到浏览模式', e)
     }
   } catch (e) {
     console.error('加载试卷失败', e)
@@ -425,24 +487,48 @@ async function init() {
 }
 
 onMounted(init)
-onUnmounted(stopTimer)
+onUnmounted(() => {
+  stopTimer()
+  if (!result.value) saveLocalState()
+})
 </script>
 
 <style scoped>
-.online-practice { max-width: 960px; margin: 0 auto; padding: 20px; }
+.online-practice { max-width: 100%; padding: 0; }
+
+/* === 顶部栏 === */
 .top-bar {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 12px 16px; background: var(--vp-c-bg-soft); border-radius: 8px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px; background: var(--vp-c-bg-soft);
+  border-bottom: 1px solid var(--vp-c-divider);
   margin-bottom: 16px;
 }
-.paper-info h2 { font-size: 18px; margin: 0 0 4px; }
-.paper-info .meta { font-size: 13px; color: var(--vp-c-text-2); }
-.timer { display: flex; align-items: center; gap: 8px; }
-.time { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.btn-pause, .btn-resume {
-  padding: 4px 12px; border: 1px solid var(--vp-c-divider);
-  border-radius: 4px; cursor: pointer; background: var(--vp-c-bg);
+.btn-back {
+  font-size: 20px; text-decoration: none; color: var(--vp-c-text-1);
+  padding: 4px 8px; border-radius: 4px; transition: background 0.2s;
 }
+.btn-back:hover { background: var(--vp-c-bg); }
+.paper-title {
+  flex: 1; font-size: 16px; font-weight: 600; margin: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.btn-submit-top {
+  display: flex; align-items: center; gap: 4px;
+  padding: 8px 16px; background: var(--vp-c-brand); color: #fff;
+  border: none; border-radius: 6px; font-size: 14px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: opacity 0.2s;
+}
+.btn-submit-top:hover { opacity: 0.9; }
+.submit-icon { font-size: 14px; }
+
+/* === 双栏布局 === */
+.practice-layout {
+  display: flex; gap: 20px; padding: 0 20px;
+  align-items: flex-start;
+}
+
+/* === 左侧题目区 === */
+.question-area { flex: 1; min-width: 0; }
 .material-panel {
   padding: 16px; background: var(--vp-c-bg-soft);
   border-radius: 8px; margin-bottom: 16px;
@@ -450,19 +536,16 @@ onUnmounted(stopTimer)
 }
 .material-panel h3 { margin: 0 0 8px; font-size: 15px; }
 .question-panel {
-  padding: 20px; background: var(--vp-c-bg-soft);
-  border-radius: 8px; margin-bottom: 16px;
+  padding: 24px; background: var(--vp-c-bg-soft); border-radius: 8px;
 }
-.question-header {
-  display: flex; gap: 12px; margin-bottom: 12px;
-  font-size: 13px; color: var(--vp-c-text-2);
+.question-content {
+  font-size: 15px; line-height: 1.8; margin: 0 0 20px; font-weight: 500;
 }
-.question-content { font-size: 15px; line-height: 1.8; margin-bottom: 16px; }
-.options { display: flex; flex-direction: column; gap: 8px; }
+.options { display: flex; flex-direction: column; gap: 10px; }
 .option-item {
   display: flex; align-items: flex-start; gap: 8px;
-  padding: 10px 12px; border: 1px solid var(--vp-c-divider);
-  border-radius: 6px; cursor: pointer; transition: all 0.2s;
+  padding: 12px 14px; border: 1px solid var(--vp-c-divider);
+  border-radius: 8px; cursor: pointer; transition: all 0.2s;
 }
 .option-item:hover { border-color: var(--vp-c-brand); }
 .option-item.selected {
@@ -470,39 +553,111 @@ onUnmounted(stopTimer)
 }
 .option-label { font-weight: 600; min-width: 24px; }
 .fill-blank input {
-  width: 100%; padding: 8px 12px; border: 1px solid var(--vp-c-divider);
-  border-radius: 4px; font-size: 14px;
+  width: 100%; padding: 10px 12px; border: 1px solid var(--vp-c-divider);
+  border-radius: 6px; font-size: 14px; background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
 }
-.bottom-bar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px; background: var(--vp-c-bg-soft);
-  border-radius: 8px;
+
+/* === 翻页按钮 === */
+.nav-buttons {
+  display: flex; justify-content: space-between; margin-top: 16px;
 }
-.bottom-bar button {
-  padding: 6px 16px; border: 1px solid var(--vp-c-divider);
+.nav-buttons button {
+  padding: 10px 20px; border: 1px solid var(--vp-c-divider);
+  border-radius: 6px; cursor: pointer; background: var(--vp-c-bg);
+  color: var(--vp-c-text-1); font-size: 14px; transition: all 0.2s;
+}
+.nav-buttons button:hover { border-color: var(--vp-c-brand); }
+.nav-buttons button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* === 右侧答题卡 === */
+.answer-card {
+  width: 260px; flex-shrink: 0;
+  background: var(--vp-c-bg-soft); border-radius: 10px;
+  border: 1px solid var(--vp-c-divider);
+  position: sticky; top: 72px;
+  max-height: calc(100vh - 80px); overflow-y: auto;
+}
+.card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 16px; border-bottom: 1px solid var(--vp-c-divider);
+}
+.card-title { font-size: 15px; font-weight: 700; }
+.card-progress { font-size: 13px; color: var(--vp-c-text-2); }
+.card-controls {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-bottom: 1px solid var(--vp-c-divider);
+}
+.btn-pause, .btn-resume {
+  padding: 4px 10px; border: 1px solid var(--vp-c-divider);
   border-radius: 4px; cursor: pointer; background: var(--vp-c-bg);
+  font-size: 13px; white-space: nowrap;
 }
-.bottom-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
-.btn-submit { background: var(--vp-c-brand) !important; color: #fff !important; border: none !important; }
-.btn-primary { background: var(--vp-c-brand); color: #fff; border: none; padding: 8px 24px; border-radius: 4px; cursor: pointer; }
-.progress { flex: 1; height: 6px; background: var(--vp-c-divider); border-radius: 3px; overflow: hidden; }
-.progress-bar { height: 100%; background: var(--vp-c-brand); transition: width 0.3s; }
-.answered-count { font-size: 13px; color: var(--vp-c-text-2); white-space: nowrap; }
+.timer-display {
+  display: flex; align-items: center; gap: 4px; margin-left: auto;
+}
+.timer-value {
+  font-size: 16px; font-weight: 600;
+  font-variant-numeric: tabular-nums; color: var(--vp-c-text-1);
+}
+.card-legend {
+  display: flex; gap: 16px; padding: 8px 16px;
+  border-bottom: 1px solid var(--vp-c-divider); font-size: 12px;
+  color: var(--vp-c-text-2);
+}
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+}
+.legend-dot.current { background: var(--vp-c-brand); }
+.legend-dot.answered { background: #67c23a; }
+.card-grid { padding: 12px 16px; }
+.module-group { margin-bottom: 12px; }
+.module-group:last-child { margin-bottom: 0; }
+.module-label {
+  font-size: 12px; color: var(--vp-c-text-2); margin-bottom: 6px;
+  display: flex; justify-content: space-between;
+}
+.module-range { color: var(--vp-c-text-3); }
+.number-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.num-btn {
+  width: 32px; height: 32px; border: 1px solid var(--vp-c-divider);
+  border-radius: 4px; background: var(--vp-c-bg); color: var(--vp-c-text-1);
+  font-size: 12px; cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.num-btn:hover { border-color: var(--vp-c-brand); }
+.num-btn.current {
+  background: var(--vp-c-brand); color: #fff;
+  border-color: var(--vp-c-brand); font-weight: 700;
+}
+.num-btn.answered {
+  background: #67c23a; color: #fff; border-color: #67c23a;
+}
+
+/* === 提交弹窗 === */
 .submit-confirm { text-align: center; }
 .submit-confirm h3 { margin: 0 0 12px; }
 .submit-confirm .warn { color: #e6a23c; }
 .submit-actions { display: flex; gap: 12px; justify-content: center; margin-top: 16px; }
-.result-panel { margin-top: 24px; }
+.btn-primary {
+  background: var(--vp-c-brand); color: #fff; border: none;
+  padding: 8px 24px; border-radius: 6px; cursor: pointer; font-size: 14px;
+}
+
+/* === 结果面板 === */
+.result-panel { margin-top: 24px; padding: 0 20px; }
 .result-panel h3 { font-size: 18px; margin-bottom: 16px; }
 .result-stats { display: flex; gap: 24px; margin-bottom: 24px; }
-.stat-item { text-align: center; padding: 16px; background: var(--vp-c-bg-soft); border-radius: 8px; min-width: 100px; }
+.stat-item {
+  text-align: center; padding: 16px; background: var(--vp-c-bg-soft);
+  border-radius: 8px; min-width: 100px;
+}
 .stat-item.wrong .stat-value { color: #f56c6c; }
 .stat-value { display: block; font-size: 28px; font-weight: 700; }
 .stat-label { font-size: 13px; color: var(--vp-c-text-2); }
 .result-questions { display: flex; flex-direction: column; gap: 16px; }
-.result-question {
-  padding: 16px; border-radius: 8px; border-left: 4px solid var(--vp-c-divider);
-}
+.result-question { padding: 16px; border-radius: 8px; border-left: 4px solid var(--vp-c-divider); }
 .result-question.correct { border-left-color: #67c23a; }
 .result-question.wrong { border-left-color: #f56c6c; }
 .rq-header { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
@@ -514,4 +669,15 @@ onUnmounted(stopTimer)
 .rq-explanation { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--vp-c-divider); }
 .rq-explanation h4 { margin: 0 0 4px; font-size: 14px; }
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
+
+/* === 响应式 === */
+@media (max-width: 960px) {
+  .practice-layout { flex-direction: column; }
+  .answer-card {
+    width: 100%; position: static;
+    max-height: none; order: -1;
+  }
+  .number-grid { gap: 4px; }
+  .num-btn { width: 28px; height: 28px; font-size: 11px; }
+}
 </style>

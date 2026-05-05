@@ -2227,6 +2227,18 @@ git commit -m "feat(P3): add PaperList.vue component for paper browsing and filt
 
 ## Task 15: 前端 — OnlinePractice.vue 在线做题组件
 
+> **实际实现说明：** OnlinePractice.vue 已对齐原站样式重写为双栏布局：
+> - **双栏布局**：左侧题目区域 (flex:1) + 右侧答题卡面板 (260px, sticky top:80px)
+> - **顶部栏**：← 返回按钮（链接回 `/题库/`）+ 试卷标题 + 📤 提交试卷按钮
+> - **答题卡面板**：进度计数 + ⏸️暂停/▶️继续 + ⏱️计时器 + 图例（当前/已答）+ 按模块分组的题号网格（点击跳题）
+> - **题号样式**：当前题（品牌色）、已答题（绿色 #67c23a）、未答题（默认灰）
+> - **计时器始终启动**：无论是否登录，进入页面即开始计时（前端本地计时）
+> - **未登录提交**：弹出内联登录 Modal，登录后自动创建 session 并同步本地答案和计时
+> - **localStorage 状态保存**：页面离开时保存 answers/currentIndex/timeElapsed，登录返回后恢复
+> - **响应式**：<960px 时答题卡面板折叠到题目上方，全宽显示
+> - **底部栏简化**：仅保留 ← 上一题 / 下一题 → 翻页按钮
+> - 页面标题已改为"在线刷题"
+
 **Files:**
 - Create: `frontend/.vitepress/theme/components/OnlinePractice.vue`
 - Modify: `frontend/pages/practice/online/index.md` — 挂载 OnlinePractice

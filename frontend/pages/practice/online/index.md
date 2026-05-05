@@ -1,6 +1,6 @@
 ---
 layout: page
-title: 在线练习
+title: 在线刷题
 ---
 
 <OnlinePractice />
