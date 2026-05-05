@@ -249,15 +249,29 @@ const moduleGroups = computed(() => {
 })
 
 const resultMap = computed(() => {
-  if (!result.value || !result.value.questions) return {}
+  if (!result.value) return {}
   const map = {}
-  result.value.questions.forEach(q => { map[q.id] = q })
+  // API 返回的结果可能不包含未答题，用题目列表补全
+  const apiResults = result.value.questions || []
+  apiResults.forEach(q => { map[q.id] = q })
+  questions.value.forEach(q => {
+    if (!map[q.id]) {
+      map[q.id] = {
+        id: q.id,
+        content: q.content,
+        userAnswer: answers.value[q.id] || null,
+        answer: q.answer || null,
+        explanation: q.explanation || '',
+        isCorrect: null
+      }
+    }
+  })
   return map
 })
 
 const currentResult = computed(() => {
   const q = currentQuestion.value
-  if (!q || !resultMap.value) return null
+  if (!q) return null
   return resultMap.value[q.id] || null
 })
 
