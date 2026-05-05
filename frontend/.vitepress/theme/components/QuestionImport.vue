@@ -1,6 +1,15 @@
 <template>
   <div class="qi-container">
+    <!-- Non-admin block -->
+    <div v-if="!isAdmin" class="qi-blocked">
+      <div class="qi-blocked-icon">🔒</div>
+      <h3>仅管理员可操作</h3>
+      <p>题库导入功能仅限管理员使用，如需权限请联系管理员</p>
+      <button class="qi-btn" @click="$router?.push('/') || (window.location.href = '/')">返回首页</button>
+    </div>
+
     <!-- Step indicator -->
+    <template v-if="isAdmin">
     <div class="qi-steps">
       <div :class="['qi-step', step >= 1 && 'active']">
         <span class="qi-step-num">1</span> 上传文件
@@ -195,6 +204,7 @@
         </button>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
@@ -371,6 +381,8 @@ async function confirmImport() {
   }
 }
 
+const isAdmin = ref(true)
+
 onMounted(async () => {
   if (!isLoggedIn()) {
     window.location.href = '/login/?redirect=/admin/import/'
@@ -378,8 +390,7 @@ onMounted(async () => {
   }
   const user = JSON.parse(localStorage.getItem('user') || '{}')
   if (user.role !== 'admin') {
-    alert('仅管理员可访问此页面')
-    window.location.href = '/'
+    isAdmin.value = false
     return
   }
   try {
@@ -396,6 +407,11 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.qi-blocked { text-align: center; padding: 80px 20px; }
+.qi-blocked-icon { font-size: 48px; margin-bottom: 16px; }
+.qi-blocked h3 { margin: 0 0 8px; color: #333; }
+.qi-blocked p { color: #666; margin: 0 0 20px; }
+
 .qi-container { max-width: 1200px; margin: 0 auto; padding: 20px; font-size: 14px; }
 
 .qi-steps { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 32px; }
