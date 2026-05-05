@@ -29,12 +29,12 @@
       <div class="qi-form-grid">
         <div class="qi-upload-zone" @dragover.prevent @drop.prevent="onDropQuestion">
           <input ref="qFileInput" type="file" accept=".pdf" hidden @change="onQuestionFileChange" />
-          <div v-if="!questionFile" class="qi-upload-placeholder" @click="$refs.qFileInput.click()">
+          <div v-if="!questionFile" class="qi-upload-placeholder" @click="qFileInput.click()">
             <div class="qi-upload-icon">📄</div>
             <p>点击或拖拽上传题目文件</p>
             <span class="qi-upload-hint">支持 PDF 格式</span>
           </div>
-          <div v-else class="qi-upload-selected" @click="$refs.qFileInput.click()">
+          <div v-else class="qi-upload-selected" @click="qFileInput.click()">
             <p>{{ questionFile.name }}</p>
             <span>{{ formatSize(questionFile.size) }}</span>
           </div>
@@ -42,12 +42,12 @@
 
         <div class="qi-upload-zone" @dragover.prevent @drop.prevent="onDropAnswer">
           <input ref="aFileInput" type="file" accept=".pdf,.docx,.doc" hidden @change="onAnswerFileChange" />
-          <div v-if="!answerFile" class="qi-upload-placeholder" @click="$refs.aFileInput.click()">
+          <div v-if="!answerFile" class="qi-upload-placeholder" @click="aFileInput.click()">
             <div class="qi-upload-icon">📝</div>
             <p>点击或拖拽上传答案解析文件</p>
             <span class="qi-upload-hint">支持 PDF / DOCX 格式</span>
           </div>
-          <div v-else class="qi-upload-selected" @click="$refs.aFileInput.click()">
+          <div v-else class="qi-upload-selected" @click="aFileInput.click()">
             <p>{{ answerFile.name }}</p>
             <span>{{ formatSize(answerFile.size) }}</span>
           </div>
@@ -212,6 +212,8 @@ import { importApi, isLoggedIn } from '../utils/api.js'
 const step = ref(1)
 const questionFile = ref(null)
 const answerFile = ref(null)
+const qFileInput = ref(null)
+const aFileInput = ref(null)
 const paperTitle = ref('')
 const paperYear = ref(new Date().getFullYear())
 const paperCategory = ref('行测')
