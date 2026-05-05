@@ -31,8 +31,8 @@ async function handleUpload() {
   error.value = ''
   try {
     const res = await importApi.uploadFiles(files.value)
-    tempId.value = res.data.temp_id
-    metadata.value = res.data.metadata
+    tempId.value = res.temp_id
+    metadata.value = res.metadata
     step.value = 2
     const regionRes = await regionApi.list()
     regions.value = regionRes.data || regionRes
@@ -49,7 +49,7 @@ async function handleParse() {
   error.value = ''
   try {
     const res = await importApi.parseFiles(tempId.value)
-    parsedData.value = res.data || res
+    parsedData.value = res
   } catch (e) {
     error.value = e.message || '解析失败'
   } finally {
