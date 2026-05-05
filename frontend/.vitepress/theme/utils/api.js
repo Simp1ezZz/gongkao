@@ -1,8 +1,8 @@
 // frontend/.vitepress/theme/utils/api.js
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-const AI_BASE = import.meta.env.VITE_AI_BASE_URL || 'http://localhost:8000/ai'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+const AI_BASE = import.meta.env.VITE_AI_BASE_URL || '/ai'
 
 const api = axios.create({
   baseURL: API_BASE,

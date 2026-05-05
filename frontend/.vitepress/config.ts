@@ -1,6 +1,10 @@
 // frontend/.vitepress/config.ts
 import { defineConfig } from 'vitepress'
 
+// 后端和 AI 服务地址，Docker 内用容器名，本地开发用 localhost
+const backendTarget = process.env.VITE_PROXY_BACKEND || 'http://localhost:8080'
+const aiTarget = process.env.VITE_PROXY_AI || 'http://localhost:8000'
+
 export default defineConfig({
   title: 'BALA 公考',
   description: '上岸没烦恼',
@@ -10,6 +14,16 @@ export default defineConfig({
   vite: {
     server: {
       allowedHosts: ['host.docker.internal'],
+      proxy: {
+        '/api': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+        '/ai': {
+          target: aiTarget,
+          changeOrigin: true,
+        },
+      },
     },
   },
   themeConfig: {
