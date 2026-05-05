@@ -9,6 +9,13 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
+// AI 服务 API
+const aiApi = axios.create({
+  baseURL: import.meta.env.VITE_AI_BASE_URL || '/ai',
+  timeout: 120000,
+  headers: { 'Content-Type': 'application/json' }
+})
+
 // 请求拦截器：附加 Token
 function addTokenInterceptor(instance) {
   instance.interceptors.request.use(config => {
@@ -64,7 +71,9 @@ function addRefreshInterceptor(instance) {
 }
 
 addTokenInterceptor(api)
+addTokenInterceptor(aiApi)
 addRefreshInterceptor(api)
+addRefreshInterceptor(aiApi)
 
 // 用户状态管理
 export function getUser() {
@@ -134,4 +143,23 @@ export const sessionApi = {
   },
 }
 
-export { api, API_BASE }
+// 管理员导入 API
+export const importApi = {
+  uploadFiles(files) {
+    const formData = new FormData()
+    formData.append('questions', files.questions)
+    formData.append('answers', files.answers)
+    formData.append('explanations', files.explanations)
+    return aiApi.post('/import/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  parseFiles(tempId) {
+    return aiApi.post('/import/parse', { temp_id: tempId })
+  },
+  confirmImport(data) {
+    return api.post('/admin/import/confirm', data)
+  }
+}
+
+export { api, aiApi, API_BASE }
