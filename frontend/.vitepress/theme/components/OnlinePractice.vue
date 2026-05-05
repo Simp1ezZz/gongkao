@@ -21,14 +21,7 @@
 
     <!-- 登录弹窗 -->
     <Modal v-if="showLoginModal" @close="showLoginModal = false">
-      <div class="login-confirm">
-        <h3>需要登录</h3>
-        <p>登录后可提交试卷，答案将被自动保存</p>
-        <div class="login-actions">
-          <button @click="showLoginModal = false">取消</button>
-          <button class="btn-primary" @click="goToLogin">去登录</button>
-        </div>
-      </div>
+      <Login inline @login-success="onLoginSuccess" />
     </Modal>
 
     <!-- 材料区域 -->
@@ -140,6 +133,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { paperApi, sessionApi } from '../utils/api.js'
 import Modal from './Modal.vue'
+import Login from './Login.vue'
 
 const loaded = ref(false)
 const paperDetail = ref({})
@@ -288,15 +282,32 @@ function confirmSubmit() {
   showSubmitModal.value = true
 }
 
-function goToLogin() {
-  // 保存当前做题状态到 localStorage
-  const state = {
-    answers: answers.value,
-    currentIndex: currentIndex.value,
-    timeElapsed: timeElapsed.value
+async function onLoginSuccess() {
+  showLoginModal.value = false
+  const params = new URLSearchParams(window.location.search)
+  const paperId = params.get('paperId')
+  if (!paperId) return
+
+  try {
+    const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
+    if (sessionRes.success) {
+      session.value = sessionRes.data
+      // 合并服务端已有进度
+      if (sessionRes.data.answers) {
+        try {
+          const savedAnswers = JSON.parse(sessionRes.data.answers)
+          savedAnswers.forEach(a => {
+            if (!answers.value[a.questionId]) {
+              answers.value[a.questionId] = a.answer
+            }
+          })
+        } catch {}
+      }
+      if (sessionRes.data.status === 'ongoing') startTimer()
+    }
+  } catch (e) {
+    console.warn('创建会话失败', e)
   }
-  localStorage.setItem('practiceState', JSON.stringify(state))
-  window.location.href = `/login/?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`
 }
 
 async function submitExam() {
@@ -503,12 +514,4 @@ onUnmounted(stopTimer)
 .rq-explanation { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--vp-c-divider); }
 .rq-explanation h4 { margin: 0 0 4px; font-size: 14px; }
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
-.login-confirm { text-align: center; }
-.login-confirm h3 { margin: 0 0 12px; }
-.login-confirm p { color: var(--vp-c-text-2); margin: 0 0 16px; }
-.login-actions { display: flex; gap: 12px; justify-content: center; }
-.login-actions button {
-  padding: 8px 24px; border: 1px solid var(--vp-c-divider);
-  border-radius: 4px; cursor: pointer; background: var(--vp-c-bg);
-}
 </style>

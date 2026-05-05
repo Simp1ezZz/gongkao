@@ -24,6 +24,17 @@ public class AnswerService {
     @Transactional
     public BatchAnswerResultVO batchSubmit(Long userId, BatchAnswerRequest req) {
         List<BatchAnswerRequest.AnswerItem> items = req.getAnswers();
+        if (items == null || items.isEmpty()) {
+            BatchAnswerResultVO result = new BatchAnswerResultVO();
+            result.setSessionId(req.getSessionId());
+            result.setTotalQuestions(0);
+            result.setCorrectCount(0);
+            result.setWrongCount(0);
+            result.setAccuracy(0);
+            result.setQuestions(List.of());
+            return result;
+        }
+
         List<Long> questionIds = items.stream()
                 .map(BatchAnswerRequest.AnswerItem::getQuestionId)
                 .collect(Collectors.toList());

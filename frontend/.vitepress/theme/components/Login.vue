@@ -1,7 +1,7 @@
 <!-- frontend/.vitepress/theme/components/Login.vue -->
 <template>
-  <div class="login-container">
-    <div class="login-card">
+  <div :class="inline ? '' : 'login-container'">
+    <div :class="inline ? '' : 'login-card'">
       <!-- 已登录状态 -->
       <template v-if="loggedIn">
         <div class="user-info">
@@ -101,6 +101,11 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { api, getUser, isLoggedIn, logout } from '../utils/api.js'
 
+const props = defineProps({
+  inline: { type: Boolean, default: false }
+})
+const emit = defineEmits(['loginSuccess'])
+
 const tabs = [
   { key: 'login', label: '登录' },
   { key: 'register', label: '注册' },
@@ -148,10 +153,13 @@ async function handleLogin() {
     loggedIn.value = true
     userInfo.value = data
     showMessage('登录成功！', 'success')
-    // 如果有 redirect 参数，登录后跳转回去
-    const redirect = new URLSearchParams(window.location.search).get('redirect')
-    if (redirect) {
-      setTimeout(() => { window.location.href = redirect }, 800)
+    if (props.inline) {
+      emit('loginSuccess', data)
+    } else {
+      const redirect = new URLSearchParams(window.location.search).get('redirect')
+      if (redirect) {
+        setTimeout(() => { window.location.href = redirect }, 800)
+      }
     }
   } catch (e) {
     showMessage(e.message || '登录失败')
@@ -171,9 +179,13 @@ async function handleRegister() {
     loggedIn.value = true
     userInfo.value = data
     showMessage('注册成功！', 'success')
-    const redirect = new URLSearchParams(window.location.search).get('redirect')
-    if (redirect) {
-      setTimeout(() => { window.location.href = redirect }, 800)
+    if (props.inline) {
+      emit('loginSuccess', data)
+    } else {
+      const redirect = new URLSearchParams(window.location.search).get('redirect')
+      if (redirect) {
+        setTimeout(() => { window.location.href = redirect }, 800)
+      }
     }
   } catch (e) {
     showMessage(e.message || '注册失败')
