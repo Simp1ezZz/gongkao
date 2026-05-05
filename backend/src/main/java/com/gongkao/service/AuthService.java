@@ -147,9 +147,10 @@ public class AuthService {
     }
 
     private AuthResponse generateAuthResponse(User user) {
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail());
+        String role = user.getRole() != null ? user.getRole() : "user";
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), role);
         String refreshToken = jwtUtil.generateRefreshToken(user.getId());
         return new AuthResponse(accessToken, refreshToken,
-                user.getId(), user.getEmail(), user.getNickname(), user.getAvatar());
+                user.getId(), user.getEmail(), user.getNickname(), user.getAvatar(), role);
     }
 }

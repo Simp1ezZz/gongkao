@@ -14,8 +14,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -44,13 +47,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 Long userId = jwtUtil.getUserIdFromToken(token);
-                log.debug("JWT filter: extracted userId={}", userId);
+                var claims = jwtUtil.parseToken(token);
+                String role = claims.get("role", String.class);
+
+                List<SimpleGrantedAuthority> authorities = "admin".equals(role)
+                        ? List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                        : List.of();
+
                 UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(userId, null, new ArrayList<>());
+                        new UsernamePasswordAuthenticationToken(userId, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);
-                log.debug("JWT filter: auth set, authenticated={}", auth.isAuthenticated());
 
                 request.setAttribute("userId", userId);
+                request.setAttribute("userRole", role);
             } catch (Exception e) {
                 log.warn("JWT filter: token parse failed: {}", e.getMessage());
             }

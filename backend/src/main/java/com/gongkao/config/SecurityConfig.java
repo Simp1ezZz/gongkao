@@ -63,6 +63,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/proxy/**").permitAll()
                 .requestMatchers("/api/regions/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/papers/**").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

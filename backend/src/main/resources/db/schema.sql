@@ -7,6 +7,7 @@
 CREATE TABLE user (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     email           VARCHAR(255) NOT NULL UNIQUE,
+    role            ENUM('user', 'admin') NOT NULL DEFAULT 'user',
     password_hash   VARCHAR(255) NOT NULL COMMENT 'BCrypt加密',
     nickname        VARCHAR(50) DEFAULT '',
     avatar          VARCHAR(500) DEFAULT '' COMMENT 'MinIO图片URL',
