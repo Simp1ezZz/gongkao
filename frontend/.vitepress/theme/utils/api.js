@@ -2,17 +2,10 @@
 import axios from 'axios'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
-const AI_BASE = import.meta.env.VITE_AI_BASE_URL || '/ai'
 
 const api = axios.create({
   baseURL: API_BASE,
   timeout: 30000,
-  headers: { 'Content-Type': 'application/json' }
-})
-
-const aiApi = axios.create({
-  baseURL: AI_BASE,
-  timeout: 120000,
   headers: { 'Content-Type': 'application/json' }
 })
 
@@ -71,7 +64,6 @@ function addRefreshInterceptor(instance) {
 }
 
 addTokenInterceptor(api)
-addTokenInterceptor(aiApi)
 addRefreshInterceptor(api)
 
 // 用户状态管理
@@ -142,69 +134,4 @@ export const sessionApi = {
   },
 }
 
-export { api, aiApi, API_BASE, AI_BASE }
-
-// Import API
-export const importApi = {
-  getModels() {
-    return aiApi.get('/import/models')
-  },
-  /**
-   * Stream parse via SSE. Returns { stream, result }.
-   * Usage: const { stream, getResult } = importApi.parseStream(formData)
-   *        for await (const event of stream) { ... }
-   *        const result = getResult()
-   */
-  parseStream(formData) {
-    let finalResult = null
-    const token = localStorage.getItem('token')
-    const baseURL = AI_BASE
-
-    async function* generate() {
-      const response = await fetch(`${baseURL}/import/parse`, {
-        method: 'POST',
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' },
-        body: formData,
-      })
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({ detail: '请求失败' }))
-        throw new Error(err.detail || `HTTP ${response.status}`)
-      }
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop()
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const event = JSON.parse(line.slice(6))
-              if (event.type === 'complete') {
-                finalResult = event.data
-              }
-              yield event
-            } catch {}
-          }
-        }
-      }
-    }
-
-    return {
-      stream: generate(),
-      getResult: () => finalResult,
-    }
-  },
-  reparseQuestion(formData) {
-    return aiApi.post('/import/reparse-question', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-      timeout: 120000,
-    })
-  },
-  confirmImport(data) {
-    return api.post('/admin/papers/import', data)
-  },
-}
+export { api, API_BASE }
