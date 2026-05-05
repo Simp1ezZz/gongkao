@@ -146,7 +146,8 @@ def parse_question_row(row: Tag) -> tuple[int, str, list[OptionItem], list[str]]
             if not isinstance(child, Tag):
                 continue
             classes = child.get("class", [])
-            if "col-xs-3" in classes or "col-xs-6" in classes:
+            col_classes = {"col-xs-3", "col-xs-6", "col-xs-12"}
+            if set(classes) & col_classes:
                 opt = parse_option_div(child)
                 if opt.label:
                     options.append(opt)
