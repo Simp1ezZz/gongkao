@@ -99,9 +99,11 @@ async def extract_questions(
 
     # 2. Split question text by modules
     module_texts = split_text_by_modules(q_result.text)
+    logger.warning("Detected %d modules: %s", len(module_texts), list(module_texts.keys()))
 
     # 3. Match answers to question numbers
     answer_map = _match_answers(q_result.text, a_result.text)
+    logger.warning("Matched answers for %d questions", len(answer_map))
 
     # 4. For each module, call LLM
     all_questions: list[ParsedQuestion] = []
@@ -111,6 +113,8 @@ async def extract_questions(
     for module_name, module_text in module_texts.items():
         if not module_text.strip():
             continue
+
+        logger.warning("Processing module '%s' (%d chars)", module_name, len(module_text))
 
         # Build answer text for this module's questions
         q_nums = re.findall(r"(?:^|\n)\s*(\d{1,3})\s*[\.。．]\s*\n", module_text)
@@ -128,6 +132,7 @@ async def extract_questions(
 
         try:
             result = await call_llm(model_name, module_text, module_answer_text, has_images)
+            logger.info("Module '%s' extracted %d questions", module_name, len(result.get("questions", [])))
         except Exception as e:
             logger.error("LLM extraction failed for module %s: %s", module_name, e)
             if progress_callback:

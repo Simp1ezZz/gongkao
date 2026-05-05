@@ -76,7 +76,7 @@ async def call_llm(
         {"role": "user", "content": user_content},
     ]
 
-    async with httpx.AsyncClient(timeout=300) as client:
+    async with httpx.AsyncClient(timeout=600) as client:
         if model.provider == "anthropic":
             # Anthropic Messages API format
             resp = await client.post(
@@ -114,7 +114,13 @@ async def call_llm(
 
     # Extract text from response
     if model.provider == "anthropic":
-        content = data["content"][0]["text"]
+        content_blocks = data.get("content", [])
+        text_block = next((b for b in content_blocks if b.get("type") == "text"), None)
+        if text_block and "text" in text_block:
+            content = text_block["text"]
+        else:
+            logger.error("Unexpected Anthropic response: %s", json.dumps(data, ensure_ascii=False)[:500])
+            raise ValueError("No text block in Anthropic response")
     else:
         content = data["choices"][0]["message"]["content"]
 
@@ -128,7 +134,36 @@ async def call_llm(
         content = content[:-3]
     content = content.strip()
 
-    return json.loads(content)
+    # Try to extract JSON from mixed content
+    json_start = content.find("{")
+    if json_start >= 0:
+        content = content[json_start:]
+
+    # Try parsing, with fallback to repair common issues
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        logger.warning("JSON parse failed: %s, attempting repair", e)
+        # Attempt 1: fix unescaped backslashes
+        import re
+        repaired = re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', content)
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError:
+            pass
+        # Attempt 2: try to find a valid JSON by truncating at last complete object
+        # (handles truncated output from max_tokens limit)
+        for i in range(len(content) - 1, len(content) // 2, -1):
+            if content[i] == '}':
+                try:
+                    partial = content[:i + 1] + ']}' if not content[:i + 1].rstrip().endswith(']}') else content[:i + 1]
+                    result = json.loads(partial)
+                    logger.warning("Recovered partial JSON with %d questions", len(result.get("questions", [])))
+                    return result
+                except json.JSONDecodeError:
+                    continue
+        logger.error("Failed to parse LLM JSON response (first 500 chars): %s", content[:500])
+        raise
 
 
 async def get_available_models() -> list[dict]:

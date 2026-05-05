@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     llm_api_url: str = ""
     llm_api_key: str = ""
     llm_model: str = "claude-sonnet-4-20250514"
-    llm_max_tokens: int = 4096
+    llm_max_tokens: int = 16384
     llm_provider: str = "anthropic"  # "openai" or "anthropic"
 
     # Multi-model config as JSON string from env var

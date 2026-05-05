@@ -1,6 +1,7 @@
 import io
 import uuid
 import logging
+from datetime import timedelta
 from minio import Minio
 from app.core.config import settings
 
@@ -43,5 +44,5 @@ def get_presigned_url(object_key: str) -> str:
     return client.presigned_get_object(
         settings.minio_bucket,
         object_key,
-        expires=3600,
+        expires=timedelta(hours=1),
     )

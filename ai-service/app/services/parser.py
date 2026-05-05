@@ -50,8 +50,11 @@ def parse_pdf(file_bytes: bytes, session_id: str) -> ParseResult:
                 placeholder = f"[img_{img_counter}]"
                 all_text_parts.append(placeholder)
                 try:
-                    xref = block["image"]
-                    pix = fitz.Pixmap(doc, xref)
+                    img_data = block["image"]
+                    if isinstance(img_data, bytes):
+                        pix = fitz.Pixmap(img_data)
+                    else:
+                        pix = fitz.Pixmap(doc, img_data)
                     if pix.n >= 5:  # CMYK → convert
                         pix = fitz.Pixmap(fitz.csRGB, pix)
                     img_bytes = pix.tobytes("png")
