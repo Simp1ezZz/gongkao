@@ -376,6 +376,12 @@ onMounted(async () => {
     window.location.href = '/login/?redirect=/admin/import/'
     return
   }
+  const user = JSON.parse(localStorage.getItem('user') || '{}')
+  if (user.role !== 'admin') {
+    alert('仅管理员可访问此页面')
+    window.location.href = '/'
+    return
+  }
   try {
     const [modelRes, regionRes] = await Promise.all([
       importApi.getModels(),
