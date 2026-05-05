@@ -12,6 +12,8 @@ const metadata = ref({})
 
 const parsedData = ref(null)
 const regions = ref([])
+const loadingMsg = ref('')
+const progressWidth = ref('0%')
 
 const canUpload = computed(() =>
   files.value.questions && files.value.answers && files.value.explanations
@@ -29,16 +31,24 @@ function onFileChange(field, event) {
 async function handleUpload() {
   loading.value = true
   error.value = ''
+  loadingMsg.value = '正在上传文件...'
+  progressWidth.value = '10%'
   try {
     const res = await importApi.uploadFiles(files.value)
     tempId.value = res.temp_id
     metadata.value = res.metadata
+    loadingMsg.value = '正在解析试卷结构...'
+    progressWidth.value = '40%'
     step.value = 2
     const regionRes = await regionApi.list()
     regions.value = regionRes.data || regionRes
+    loadingMsg.value = '正在下载图片并生成预览...'
+    progressWidth.value = '60%'
     await handleParse()
+    progressWidth.value = '100%'
   } catch (e) {
     error.value = e.message || '上传失败'
+    step.value = 1
   } finally {
     loading.value = false
   }
@@ -70,6 +80,8 @@ function getRegionId() {
 async function handleConfirm() {
   loading.value = true
   error.value = ''
+  loadingMsg.value = '正在导入试卷...'
+  progressWidth.value = '80%'
   try {
     const payload = {
       metadata: {
@@ -117,7 +129,7 @@ function reset() {
     <div v-if="error" class="error-msg">{{ error }}</div>
 
     <!-- Step 1: Upload -->
-    <div v-if="step === 1" class="upload-section">
+    <div v-if="step === 1 && !loading" class="upload-section">
       <div class="file-group">
         <label>试题文件</label>
         <input type="file" accept=".doc,.docx,.html" @change="onFileChange('questions', $event)" />
@@ -130,13 +142,20 @@ function reset() {
         <label>解析文件</label>
         <input type="file" accept=".doc,.docx,.html" @change="onFileChange('explanations', $event)" />
       </div>
-      <button class="btn-primary" :disabled="!canUpload || loading" @click="handleUpload">
-        {{ loading ? '上传解析中...' : '上传并解析' }}
+      <button class="btn-primary" :disabled="!canUpload" @click="handleUpload">
+        上传并解析
       </button>
     </div>
 
+    <!-- Loading -->
+    <div v-if="loading" class="loading-section">
+      <div class="spinner"></div>
+      <p class="loading-text">{{ loadingMsg }}</p>
+      <div class="progress-bar"><div class="progress-fill" :style="{ width: progressWidth }"></div></div>
+    </div>
+
     <!-- Step 2: Preview -->
-    <div v-if="step === 2 && parsedData" class="preview-section">
+    <div v-if="step === 2 && parsedData && !loading" class="preview-section">
       <div class="meta-edit">
         <h3>试卷信息</h3>
         <div class="meta-grid">
@@ -185,11 +204,9 @@ function reset() {
         </details>
       </div>
 
-      <div class="actions">
+      <div class="actions" v-if="!loading">
         <button class="btn-secondary" @click="reset">重新上传</button>
-        <button class="btn-primary" :disabled="loading" @click="handleConfirm">
-          {{ loading ? '导入中...' : '确认导入' }}
-        </button>
+        <button class="btn-primary" @click="handleConfirm">确认导入</button>
       </div>
     </div>
 
@@ -393,5 +410,48 @@ function reset() {
   font-size: 48px;
   color: var(--vp-c-brand);
   margin-bottom: 16px;
+}
+
+.loading-section {
+  text-align: center;
+  padding: 60px 24px;
+  background: var(--vp-c-bg-soft);
+  border-radius: 12px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--vp-c-divider);
+  border-top-color: var(--vp-c-brand);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 20px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 15px;
+  color: var(--vp-c-text-2);
+  margin-bottom: 20px;
+}
+
+.progress-bar {
+  max-width: 320px;
+  height: 6px;
+  background: var(--vp-c-divider);
+  border-radius: 3px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--vp-c-brand);
+  border-radius: 3px;
+  transition: width 0.6s ease;
 }
 </style>
