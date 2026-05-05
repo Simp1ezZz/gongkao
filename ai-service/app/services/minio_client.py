@@ -2,7 +2,6 @@ import io
 import uuid
 import logging
 from minio import Minio
-from minio.http import Method
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -41,8 +40,7 @@ def upload_image(image_data: bytes, filename: str, session_id: str) -> str:
 
 def get_presigned_url(object_key: str) -> str:
     client = get_minio_client()
-    return client.get_presigned_url(
-        Method.GET,
+    return client.presigned_get_object(
         settings.minio_bucket,
         object_key,
         expires=3600,
