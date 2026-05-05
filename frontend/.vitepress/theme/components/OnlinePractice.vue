@@ -79,6 +79,9 @@
               <div class="analysis-explanation" v-html="renderLatex(currentResult.explanation)"></div>
             </div>
             <p v-if="currentQuestion.module"><strong>💡 知识点：</strong>{{ currentQuestion.module }}</p>
+            <div v-if="!expandedSet.has(currentIndex)" class="analysis-expand-hint">
+              <span>点击展开查看完整解析 ▼</span>
+            </div>
           </div>
         </div>
 
@@ -808,19 +811,25 @@ onUnmounted(() => {
 .analysis-body {
   padding: 14px; border-top: 1px solid var(--vp-c-divider);
   font-size: 14px; line-height: 1.7;
-  max-height: 150px; overflow: hidden; position: relative;
+  max-height: 240px; overflow: hidden; position: relative;
   transition: max-height 0.3s ease;
 }
 .analysis-section.expanded .analysis-body {
   max-height: none;
 }
-.analysis-body:not(.analysis-section.expanded .analysis-body)::after {
-  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
-  height: 40px; cursor: pointer;
-  background: linear-gradient(transparent, var(--vp-c-bg-soft));
-}
 .analysis-body p { margin: 6px 0; }
 .analysis-explanation { margin-top: 4px; }
+.analysis-expand-hint {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 48px; display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 6px;
+  background: linear-gradient(transparent, var(--vp-c-bg-soft));
+  cursor: pointer;
+}
+.analysis-expand-hint span {
+  font-size: 12px; color: var(--vp-c-brand); font-weight: 500;
+  background: var(--vp-c-bg-soft); padding: 0 8px; border-radius: 4px;
+}
 
 /* === 提交后选项样式 === */
 .correct-option {
