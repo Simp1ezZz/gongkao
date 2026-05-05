@@ -11,16 +11,17 @@ class ModelConfig(BaseModel):
     model: str
     max_tokens: int = 4096
     supports_vision: bool = False
+    provider: str = "openai"  # "openai" or "anthropic"
 
 
 class Settings(BaseSettings):
     jwt_secret: str = "myDefaultJwtSecretKeyForDevOnlyPleaseReplaceInProd2026"
 
-    llm_provider: str = "openai-compatible"
     llm_api_url: str = ""
     llm_api_key: str = ""
-    llm_model: str = "gpt-4o"
+    llm_model: str = "claude-sonnet-4-20250514"
     llm_max_tokens: int = 4096
+    llm_provider: str = "anthropic"  # "openai" or "anthropic"
 
     # Multi-model config as JSON string from env var
     llm_models: str = "[]"
@@ -44,6 +45,7 @@ class Settings(BaseSettings):
             model=self.llm_model,
             max_tokens=self.llm_max_tokens,
             supports_vision=True,
+            provider=self.llm_provider,
         )
         return [default] + [ModelConfig(**m) for m in models]
 

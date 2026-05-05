@@ -77,24 +77,46 @@ async def call_llm(
     ]
 
     async with httpx.AsyncClient(timeout=300) as client:
-        resp = await client.post(
-            model.api_url,
-            headers={
-                "Authorization": f"Bearer {model.api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": model.model,
-                "messages": messages,
-                "max_tokens": model.max_tokens,
-                "temperature": 0.1,
-            },
-        )
+        if model.provider == "anthropic":
+            # Anthropic Messages API format
+            resp = await client.post(
+                model.api_url,
+                headers={
+                    "x-api-key": model.api_key,
+                    "anthropic-version": "2023-06-01",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model.model,
+                    "max_tokens": model.max_tokens,
+                    "temperature": 0.1,
+                    "system": SYSTEM_PROMPT,
+                    "messages": [{"role": "user", "content": user_content}],
+                },
+            )
+        else:
+            # OpenAI-compatible format
+            resp = await client.post(
+                model.api_url,
+                headers={
+                    "Authorization": f"Bearer {model.api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model.model,
+                    "messages": messages,
+                    "max_tokens": model.max_tokens,
+                    "temperature": 0.1,
+                },
+            )
         resp.raise_for_status()
         data = resp.json()
 
     # Extract text from response
-    content = data["choices"][0]["message"]["content"]
+    if model.provider == "anthropic":
+        content = data["content"][0]["text"]
+    else:
+        content = data["choices"][0]["message"]["content"]
 
     # Strip markdown code fences if present
     content = content.strip()
@@ -117,6 +139,7 @@ async def get_available_models() -> list[dict]:
             "name": m.name,
             "model": m.model,
             "supports_vision": m.supports_vision,
+            "provider": m.provider,
         }
         for m in models
     ]
