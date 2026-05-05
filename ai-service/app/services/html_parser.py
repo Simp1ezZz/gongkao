@@ -157,12 +157,10 @@ def parse_question_row(row: Tag) -> tuple[int, str, list[OptionItem], list[str]]
             if not isinstance(child, Tag):
                 continue
             if child.name == "p":
-                # Make images inline within paragraphs (e.g. LaTeX formulas)
-                for img in child.find_all("img"):
+                # LaTeX formula images (flag="tex") should be inline
+                for img in child.find_all("img", attrs={"flag": "tex"}):
                     style = img.get("style", "")
                     style = style.replace("display: block", "display: inline")
-                    if "display" not in style:
-                        style += "display: inline;"
                     img["style"] = style
                 content_tags.append(str(child))
 
