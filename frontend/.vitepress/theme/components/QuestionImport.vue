@@ -290,7 +290,8 @@ function stripHtml(html) {
 
 async function startParse() {
   step.value = 2
-  moduleStatus.value = { '正在准备...': 'extracting' }
+  moduleStatus.value = {}
+  moduleCounts.value = {}
 
   const formData = new FormData()
   formData.append('question_file', questionFile.value)
@@ -302,20 +303,20 @@ async function startParse() {
   if (selectedModel.value) formData.append('model_name', selectedModel.value)
 
   try {
-    const res = await importApi.parse(formData)
+    const { stream, getResult } = importApi.parseStream(formData)
+    for await (const event of stream) {
+      if (event.type === 'progress') {
+        moduleStatus.value[event.module] = event.status
+        if (event.count > 0) moduleCounts.value[event.module] = event.count
+      } else if (event.type === 'error') {
+        throw new Error(event.message)
+      }
+      // 'complete' event ends the stream
+    }
+    const res = getResult()
     questions.value = res.questions || []
     materialGroups.value = res.material_groups || []
     parseStats.value = res.stats || {}
-
-    // Update module status to done
-    moduleStatus.value = {}
-    if (parseStats.value.modules) {
-      for (const [mod, count] of Object.entries(parseStats.value.modules)) {
-        moduleStatus.value[mod] = 'done'
-        moduleCounts.value[mod] = count
-      }
-    }
-
     setTimeout(() => { step.value = 3 }, 800)
   } catch (err) {
     alert('解析失败: ' + (err.response?.data?.detail || err.message))
