@@ -1,68 +1,83 @@
 <template>
   <div class="paper-list">
-    <!-- 筛选栏 -->
-    <div class="filter-bar">
-      <div class="filter-group">
-        <label>地区：</label>
-        <select v-model="filters.regionId" @change="loadPapers">
-          <option :value="null">全部</option>
-          <option v-for="r in regions" :key="r.id" :value="r.id">
-            {{ r.name }}
-          </option>
-        </select>
+    <!-- 题库模式 -->
+    <template v-if="mode === 'bank'">
+      <!-- 地区筛选：pill 按钮 -->
+      <div class="filter-tags">
+        <button :class="['filter-tag', { active: !filters.regionId }]"
+                @click="selectRegion(null)">全部</button>
+        <button v-for="r in regions" :key="r.id"
+                :class="['filter-tag', { active: filters.regionId === r.id }]"
+                @click="selectRegion(r.id)">
+          {{ r.name }}
+        </button>
       </div>
-      <div class="filter-group" v-if="mode === 'special'">
-        <label>模块：</label>
-        <select v-model="filters.module" @change="loadPapers">
-          <option value="">全部</option>
-          <option value="言语理解">言语理解</option>
-          <option value="数量关系">数量关系</option>
-          <option value="判断推理">判断推理</option>
-          <option value="资料分析">资料分析</option>
-          <option value="常识判断">常识判断</option>
-        </select>
+
+      <!-- 加载中 -->
+      <div v-if="loading" class="loading">加载中...</div>
+
+      <!-- 试卷列表 -->
+      <div v-else class="papers">
+        <div v-for="paper in papers" :key="paper.id" class="paper-card"
+             @click="startBankPractice(paper)">
+          <div class="paper-main">
+            <div class="paper-title">{{ paper.title }}</div>
+            <span v-if="paper.regionName" class="region-tag">{{ paper.regionName }}</span>
+          </div>
+          <div class="paper-rating">{{ '★'.repeat(paper.rating || 0) }}</div>
+        </div>
+        <Empty v-if="papers.length === 0 && !loading" text="暂无试卷" />
       </div>
-    </div>
 
-    <!-- 加载中 -->
-    <div v-if="loading" class="loading">加载中...</div>
+      <!-- 加载更多 -->
+      <button v-if="total > papers.length" class="btn-load-more" @click="loadMore"
+              :disabled="loadingMore">
+        {{ loadingMore ? '加载中...' : `📥 加载更多 (已加载 ${papers.length}/${total})` }}
+      </button>
 
-    <!-- 试卷列表（题库模式） -->
-    <div v-else-if="mode === 'bank'" class="papers">
-      <div v-for="paper in papers" :key="paper.id" class="paper-card"
-           @click="startPractice(paper)">
-        <div class="paper-title">{{ paper.title }}</div>
-        <div class="paper-meta">
-          <span v-if="paper.regionName" class="region">{{ paper.regionName }}</span>
-          <span class="year">{{ paper.year }}年</span>
-          <span class="count">{{ paper.questionCount }}题</span>
-          <span class="rating">{{ '★'.repeat(paper.rating || 0) }}</span>
+      <div class="bank-footer">
+        <a href="/practice/special/" class="link-special">📝 专项练习</a>
+      </div>
+    </template>
+
+    <!-- 专项练习模式 -->
+    <template v-else>
+      <div class="special-header">
+        <h1>💪 专项练习</h1>
+        <p>动态随机出题，提升你的公考能力</p>
+      </div>
+
+      <!-- 加载中 -->
+      <div v-if="loading" class="loading">加载中...</div>
+
+      <div v-else class="module-grid">
+        <div v-for="mod in modules" :key="mod.value" class="module-card">
+          <div class="module-icon">{{ mod.emoji }}</div>
+          <h3>{{ mod.name }}</h3>
+          <p>{{ mod.desc }}</p>
+          <div class="module-actions">
+            <button v-for="count in [10, 20, 30]" :key="count"
+                    class="btn-count"
+                    @click="startSpecial(mod.value, count)">
+              {{ count }} 题
+            </button>
+            <div class="custom-count">
+              <input type="number" min="1" max="200"
+                     v-model.number="customCounts[mod.value]"
+                     @keyup.enter="startSpecial(mod.value, customCounts[mod.value])"
+                     placeholder="自定义" />
+              <button class="btn-count btn-go"
+                      @click="startSpecial(mod.value, customCounts[mod.value])">题</button>
+            </div>
+          </div>
         </div>
       </div>
-      <Empty v-if="papers.length === 0" text="暂无试卷" />
-    </div>
-
-    <!-- 题目列表（专项练习模式） -->
-    <div v-else class="papers">
-      <div v-if="!filters.module" class="hint">请先选择模块</div>
-      <div v-else-if="questions.length > 0" class="special-start">
-        <p>已筛选 {{ questions.length }} 道{{ filters.module }}题目</p>
-        <button class="btn-primary" @click="startPractice()">开始练习</button>
-      </div>
-      <Empty v-else text="该模块暂无题目" />
-    </div>
-
-    <!-- 分页 -->
-    <div class="pagination" v-if="total > pageSize">
-      <button :disabled="page <= 1" @click="page--; loadPapers()">上一页</button>
-      <span>{{ page }} / {{ totalPages }}</span>
-      <button :disabled="page >= totalPages" @click="page++; loadPapers()">下一页</button>
-    </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { paperApi, regionApi } from '../utils/api.js'
 import Empty from './Empty.vue'
 
@@ -71,56 +86,114 @@ const props = defineProps({
   category: { type: String, default: '行测' }
 })
 
+const modules = [
+  { name: '言语理解', emoji: '📖', desc: '词汇积累、语句表达、片段阅读', value: '言语理解' },
+  { name: '数量关系', emoji: '🔢', desc: '数字推理、数学运算、应用题', value: '数量关系' },
+  { name: '判断推理', emoji: '🧩', desc: '图形推理、定义判断、类比推理', value: '判断推理' },
+  { name: '资料分析', emoji: '📊', desc: '文字资料、表格资料、图形资料', value: '资料分析' },
+  { name: '常识判断', emoji: '🌍', desc: '政治、经济、文化、科技、法律', value: '常识判断' },
+  { name: '政治理论', emoji: '🏛️', desc: '马克思主义、毛泽东思想、中国特色社会主义', value: '政治理论' },
+]
+
 const regions = ref([])
 const papers = ref([])
-const questions = ref([])
 const loading = ref(false)
+const loadingMore = ref(false)
 const page = ref(1)
-const pageSize = 20
+const pageSize = 25
 const total = ref(0)
-const totalPages = computed(() => Math.ceil(total.value / pageSize))
+const customCounts = reactive({})
 
 const filters = ref({
   regionId: null,
   module: ''
 })
 
+// --- 题库模式 ---
+
+function selectRegion(id) {
+  filters.value.regionId = id
+  page.value = 1
+  papers.value = []
+  loadPapers()
+}
+
 async function loadPapers() {
   loading.value = true
   try {
-    if (props.mode === 'special') {
-      if (!filters.value.module) {
-        questions.value = []
-        papers.value = []
-        total.value = 0
-        return
-      }
-      const params = { module: filters.value.module, limit: 50 }
-      if (filters.value.subModule) params.sub_module = filters.value.subModule
-      const res = await paperApi.getQuestionsByKnowledge(params)
-      if (res.success) {
-        questions.value = res.data || []
-        total.value = questions.value.length
-      }
-    } else {
-      const params = {
-        category: props.category,
-        regionId: filters.value.regionId,
-        page: page.value,
-        pageSize
-      }
-      const res = await paperApi.list(params)
-      if (res.success) {
+    const params = {
+      category: props.category,
+      regionId: filters.value.regionId,
+      page: page.value,
+      pageSize
+    }
+    const res = await paperApi.list(params)
+    if (res.success) {
+      if (page.value === 1) {
         papers.value = res.data.list
-        total.value = res.data.total
+      } else {
+        papers.value.push(...res.data.list)
       }
+      total.value = res.data.total
     }
   } catch (e) {
-    console.error('加载数据失败', e)
+    console.error('加载试卷失败', e)
   } finally {
     loading.value = false
   }
 }
+
+async function loadMore() {
+  page.value++
+  loadingMore.value = true
+  try {
+    const params = {
+      category: props.category,
+      regionId: filters.value.regionId,
+      page: page.value,
+      pageSize
+    }
+    const res = await paperApi.list(params)
+    if (res.success) {
+      papers.value.push(...res.data.list)
+      total.value = res.data.total
+    }
+  } catch (e) {
+    console.error('加载更多失败', e)
+    page.value--
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+function startBankPractice(paper) {
+  window.location.href = `/practice/online/?paperId=${paper.id}`
+}
+
+// --- 专项练习模式 ---
+
+async function startSpecial(moduleName, count) {
+  if (!count || count < 1) return
+  loading.value = true
+  try {
+    const res = await paperApi.getQuestionsByKnowledge({ module: moduleName, limit: count })
+    if (res.success && res.data?.length > 0) {
+      const questions = res.data
+      localStorage.setItem('specialQuestions', JSON.stringify(questions))
+      const qIds = questions.map(q => q.id).join(',')
+      window.location.href = `/practice/online/?questionIds=${qIds}`
+    } else {
+      alert('该模块暂无题目')
+    }
+  } catch (e) {
+    console.error('加载题目失败', e)
+    alert('加载题目失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
+}
+
+// --- 公共 ---
 
 async function loadRegions() {
   try {
@@ -133,61 +206,208 @@ async function loadRegions() {
   }
 }
 
-function startPractice(paper) {
-  if (props.mode === 'special') {
-    localStorage.setItem('specialQuestions', JSON.stringify(questions.value))
-    const qIds = questions.value.map(q => q.id).join(',')
-    window.location.href = `/practice/online/?questionIds=${qIds}`
-  } else {
-    window.location.href = `/practice/online/?paperId=${paper.id}`
-  }
-}
-
 onMounted(() => {
   loadRegions()
-  loadPapers()
+  if (props.mode === 'bank') {
+    loadPapers()
+  }
 })
 </script>
 
 <style scoped>
 .paper-list { max-width: 960px; margin: 0 auto; padding: 20px; }
-.filter-bar {
-  display: flex; gap: 16px; margin-bottom: 20px;
-  padding: 12px 16px; background: var(--vp-c-bg-soft);
-  border-radius: 8px;
+
+/* --- 地区筛选 pill 按钮 --- */
+.filter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
 }
-.filter-group { display: flex; align-items: center; gap: 6px; }
-.filter-group label { font-size: 14px; color: var(--vp-c-text-2); }
-.filter-group select {
-  padding: 4px 8px; border: 1px solid var(--vp-c-divider);
-  border-radius: 4px; background: var(--vp-c-bg);
-  color: var(--vp-c-text-1); font-size: 14px;
+.filter-tag {
+  padding: 6px 14px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 20px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
+.filter-tag:hover {
+  border-color: var(--vp-c-brand);
+  color: var(--vp-c-brand);
+}
+.filter-tag.active {
+  background: var(--vp-c-brand);
+  color: #fff;
+  border-color: var(--vp-c-brand);
+}
+
+/* --- 试卷卡片 --- */
 .papers { display: flex; flex-direction: column; gap: 12px; }
 .paper-card {
-  padding: 16px; background: var(--vp-c-bg-soft);
-  border-radius: 8px; cursor: pointer;
-  transition: box-shadow 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--vp-c-bg-soft);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
 }
-.paper-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.1); }
-.paper-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-.paper-meta { display: flex; gap: 12px; font-size: 13px; color: var(--vp-c-text-2); }
-.rating { color: #f5a623; }
-.pagination {
-  display: flex; align-items: center; justify-content: center;
-  gap: 16px; margin-top: 20px;
+.paper-card:hover {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  transform: translateX(2px);
 }
-.pagination button {
-  padding: 6px 16px; border: 1px solid var(--vp-c-divider);
-  border-radius: 4px; background: var(--vp-c-bg); cursor: pointer;
+.paper-main { flex: 1; min-width: 0; }
+.paper-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.5;
 }
-.pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+.region-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  background: var(--vp-c-brand-dimm);
+  color: var(--vp-c-brand);
+}
+.paper-rating {
+  color: #f5a623;
+  font-size: 14px;
+  white-space: nowrap;
+  margin-left: 12px;
+}
+
+/* --- 加载更多 --- */
+.btn-load-more {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  margin-top: 16px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 8px;
+  background: var(--vp-c-bg-soft);
+  color: var(--vp-c-text-1);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-load-more:hover {
+  border-color: var(--vp-c-brand);
+  color: var(--vp-c-brand);
+}
+.btn-load-more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bank-footer {
+  text-align: center;
+  margin-top: 20px;
+}
+.link-special {
+  color: var(--vp-c-brand);
+  text-decoration: none;
+  font-size: 15px;
+}
+.link-special:hover { text-decoration: underline; }
+
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
-.hint { text-align: center; padding: 40px; color: var(--vp-c-text-2); font-size: 15px; }
-.special-start { text-align: center; padding: 20px; }
-.special-start p { margin-bottom: 16px; color: var(--vp-c-text-2); }
-.btn-primary {
-  padding: 8px 24px; background: var(--vp-c-brand);
-  color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;
+
+/* --- 专项练习 --- */
+.special-header {
+  text-align: center;
+  margin-bottom: 32px;
 }
+.special-header h1 {
+  font-size: 24px;
+  margin: 0 0 8px;
+}
+.special-header p {
+  color: var(--vp-c-text-2);
+  font-size: 15px;
+  margin: 0;
+}
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+@media (max-width: 640px) {
+  .module-grid { grid-template-columns: 1fr; }
+}
+.module-card {
+  padding: 24px;
+  background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  transition: all 0.25s;
+}
+.module-card:hover {
+  border-color: var(--vp-c-brand);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+}
+.module-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+.module-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.module-card p {
+  font-size: 13px;
+  color: var(--vp-c-text-2);
+  margin: 0 0 16px;
+}
+.module-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.btn-count {
+  padding: 6px 14px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-count:hover {
+  border-color: var(--vp-c-brand);
+  color: var(--vp-c-brand);
+  background: var(--vp-c-brand-dimm);
+}
+.btn-go {
+  border-radius: 0 6px 6px 0;
+}
+.custom-count {
+  display: flex;
+  align-items: center;
+}
+.custom-count input {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid var(--vp-c-divider);
+  border-right: none;
+  border-radius: 6px 0 0 6px;
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-1);
+  font-size: 13px;
+  outline: none;
+}
+.custom-count input:focus {
+  border-color: var(--vp-c-brand);
+}
+.custom-count input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.custom-count input[type=number] { -moz-appearance: textfield; }
 </style>

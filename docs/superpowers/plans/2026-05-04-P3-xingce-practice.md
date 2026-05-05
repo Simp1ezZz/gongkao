@@ -49,6 +49,7 @@ backend/src/main/java/com/gongkao/
 │   └── FileService.java               # MinIO文件上传/读取
 ├── controller/
 │   ├── PaperController.java           # /api/papers/**
+│   ├── RegionController.java          # /api/regions/**
 │   ├── SessionController.java         # /api/sessions/**
 │   └── FileController.java            # /api/files/**
 └── config/
@@ -57,8 +58,10 @@ backend/src/main/java/com/gongkao/
 frontend/
 ├── .vitepress/theme/
 │   ├── utils/
-│   │   └── api.js                     # (已存在, 扩展试卷API)
+│   │   └── api.js                     # (已存在, 扩展试卷/地区/会话API)
 │   └── components/
+│       ├── Empty.vue                  # 空状态占位组件
+│       ├── Modal.vue                  # 弹窗组件
 │       ├── PaperList.vue              # 试卷列表(行测题库+专项练习复用)
 │       └── OnlinePractice.vue         # 在线做题页面
 ├── pages/
@@ -160,11 +163,66 @@ git commit -m "feat(P3): add Region entity, mapper and seed data"
 
 ---
 
+## Task 1.5: RegionController — 地区列表 API
+
+**Files:**
+- Create: `backend/src/main/java/com/gongkao/controller/RegionController.java`
+
+- [ ] **Step 1: 创建 RegionController**
+
+```java
+// backend/src/main/java/com/gongkao/controller/RegionController.java
+package com.gongkao.controller;
+
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.gongkao.common.Result;
+import com.gongkao.entity.Region;
+import com.gongkao.mapper.RegionMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/regions")
+@RequiredArgsConstructor
+public class RegionController {
+
+    private final RegionMapper regionMapper;
+
+    /**
+     * GET /api/regions
+     * 获取所有地区列表（按 sort_order 排序）
+     */
+    @GetMapping
+    public Result<List<Region>> listRegions() {
+        LambdaQueryWrapper<Region> wrapper = new LambdaQueryWrapper<>();
+        wrapper.orderByAsc(Region::getSortOrder);
+        return Result.ok(regionMapper.selectList(wrapper));
+    }
+}
+```
+
+- [ ] **Step 2: 验证编译**
+
+Run: `cd backend && mvn compile -q`
+Expected: BUILD SUCCESS
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add backend/src/main/java/com/gongkao/controller/RegionController.java
+git commit -m "feat(P3): add RegionController for region listing API"
+```
+
+---
+
 ## Task 2: Paper 实体 + Mapper
 
 **Files:**
 - Create: `backend/src/main/java/com/gongkao/entity/Paper.java`
 - Create: `backend/src/main/java/com/gongkao/mapper/PaperMapper.java`
+- Create: `backend/src/main/resources/mapper/PaperMapper.xml`
 
 - [ ] **Step 1: 创建 Paper 实体**
 
@@ -205,33 +263,45 @@ public class Paper {
 package com.gongkao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.gongkao.entity.Paper;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
 
 @Mapper
 public interface PaperMapper extends BaseMapper<Paper> {
 
-    @Select("SELECT p.*, r.name as region_name FROM paper p " +
-            "LEFT JOIN region r ON p.region_id = r.id " +
-            "WHERE p.category = #{category} " +
-            "AND (#{regionId} IS NULL OR p.region_id = #{regionId}) " +
-            "ORDER BY p.year DESC, p.id DESC " +
-            "LIMIT #{offset}, #{limit}")
-    List<Paper> selectPageWithRegion(@Param("category") String category,
-                                      @Param("regionId") Integer regionId,
-                                      @Param("offset") long offset,
-                                      @Param("limit") long limit);
-
-    @Select("SELECT COUNT(*) FROM paper " +
-            "WHERE category = #{category} " +
-            "AND (#{regionId} IS NULL OR region_id = #{regionId})")
-    long countByFilter(@Param("category") String category,
-                       @Param("regionId") Integer regionId);
+    /**
+     * 分页查询试卷（含地区名称），使用 XML mapper 定义 SQL
+     * MyBatis-Plus 自动识别 IPage 参数进行分页（需 PaginationInnerInterceptor）
+     */
+    IPage<Paper> selectPageWithRegion(IPage<Paper> page,
+                                       @Param("category") String category,
+                                       @Param("regionId") Integer regionId);
 }
+```
+
+同时创建对应的 XML mapper 文件：
+
+```xml
+<!-- backend/src/main/resources/mapper/PaperMapper.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gongkao.mapper.PaperMapper">
+
+    <select id="selectPageWithRegion" resultType="com.gongkao.entity.Paper">
+        SELECT p.*, r.name AS region_name
+        FROM paper p
+        LEFT JOIN region r ON p.region_id = r.id
+        WHERE p.category = #{category}
+        <if test="regionId != null">
+            AND p.region_id = #{regionId}
+        </if>
+        ORDER BY p.year DESC, p.id DESC
+    </select>
+
+</mapper>
 ```
 
 - [ ] **Step 3: 验证编译**
@@ -349,27 +419,27 @@ import java.util.List;
 @Mapper
 public interface QuestionMapper extends BaseMapper<Question> {
 
-    @Select("<script>" +
-            "SELECT * FROM question " +
+    @Select("SELECT * FROM question " +
             "WHERE paper_id = #{paperId} " +
-            "ORDER BY sort_order ASC, id ASC" +
-            "</script>")
+            "ORDER BY sort_order ASC, id ASC")
     List<Question> selectByPaperId(@Param("paperId") Long paperId);
 
+    /**
+     * 按知识点查询符合条件的题目 ID 列表（不使用 ORDER BY RAND，避免全表排序）
+     */
     @Select("<script>" +
-            "SELECT * FROM question " +
+            "SELECT id FROM question " +
             "WHERE module = #{module} " +
             "<if test='subModule != null'> AND sub_module = #{subModule} </if>" +
             "<if test='knowledgePoint != null'> AND knowledge_point = #{knowledgePoint} </if>" +
-            "ORDER BY RAND() " +
-            "LIMIT #{limit}" +
             "</script>")
-    List<Question> selectByKnowledge(@Param("module") String module,
-                                      @Param("subModule") String subModule,
-                                      @Param("knowledgePoint") String knowledgePoint,
-                                      @Param("limit") int limit);
+    List<Long> selectIdsByKnowledge(@Param("module") String module,
+                                     @Param("subModule") String subModule,
+                                     @Param("knowledgePoint") String knowledgePoint);
 }
 ```
+
+> **说明：** 移除了 `ORDER BY RAND() LIMIT`，改为在 `PaperService` 中查询 ID 列表后用 `Collections.shuffle` 随机选取，再用 `selectBatchIds` 批量查详情。
 
 - [ ] **Step 5: 验证编译**
 
@@ -597,6 +667,7 @@ public class PaperQueryRequest {
 // backend/src/main/java/com/gongkao/dto/MaterialGroupVO.java
 package com.gongkao.dto;
 
+import com.gongkao.entity.MaterialGroup;
 import lombok.Data;
 
 @Data
@@ -605,6 +676,15 @@ public class MaterialGroupVO {
     private String title;
     private String content;
     private Integer sortOrder;
+
+    public static MaterialGroupVO from(MaterialGroup mg) {
+        MaterialGroupVO vo = new MaterialGroupVO();
+        vo.setId(mg.getId());
+        vo.setTitle(mg.getTitle());
+        vo.setContent(mg.getContent());
+        vo.setSortOrder(mg.getSortOrder());
+        return vo;
+    }
 }
 ```
 
@@ -614,6 +694,7 @@ public class MaterialGroupVO {
 // backend/src/main/java/com/gongkao/dto/QuestionVO.java
 package com.gongkao.dto;
 
+import com.gongkao.entity.Question;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -631,6 +712,22 @@ public class QuestionVO {
     private String options; // JSON
     private String images; // JSON
     private BigDecimal score;
+
+    public static QuestionVO from(Question q) {
+        QuestionVO vo = new QuestionVO();
+        vo.setId(q.getId());
+        vo.setMaterialGroupId(q.getMaterialGroupId());
+        vo.setSortOrder(q.getSortOrder());
+        vo.setModule(q.getModule());
+        vo.setSubModule(q.getSubModule());
+        vo.setKnowledgePoint(q.getKnowledgePoint());
+        vo.setType(q.getType());
+        vo.setContent(q.getContent());
+        vo.setOptions(q.getOptions());
+        vo.setImages(q.getImages());
+        vo.setScore(q.getScore());
+        return vo;
+    }
 }
 ```
 
@@ -640,6 +737,7 @@ public class QuestionVO {
 // backend/src/main/java/com/gongkao/dto/QuestionWithAnswerVO.java
 package com.gongkao.dto;
 
+import com.gongkao.entity.Question;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -662,6 +760,26 @@ public class QuestionWithAnswerVO {
     // 用户作答信息
     private String userAnswer;
     private Boolean isCorrect;
+
+    public static QuestionWithAnswerVO from(Question q, String userAnswer, Boolean isCorrect) {
+        QuestionWithAnswerVO vo = new QuestionWithAnswerVO();
+        vo.setId(q.getId());
+        vo.setMaterialGroupId(q.getMaterialGroupId());
+        vo.setSortOrder(q.getSortOrder());
+        vo.setModule(q.getModule());
+        vo.setSubModule(q.getSubModule());
+        vo.setKnowledgePoint(q.getKnowledgePoint());
+        vo.setType(q.getType());
+        vo.setContent(q.getContent());
+        vo.setOptions(q.getOptions());
+        vo.setAnswer(q.getAnswer());
+        vo.setExplanation(q.getExplanation());
+        vo.setImages(q.getImages());
+        vo.setScore(q.getScore());
+        vo.setUserAnswer(userAnswer);
+        vo.setIsCorrect(isCorrect);
+        return vo;
+    }
 }
 ```
 
@@ -782,6 +900,8 @@ git commit -m "feat(P3): add all DTOs for paper, question, session, answer"
 package com.gongkao.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gongkao.dto.*;
 import com.gongkao.entity.*;
 import com.gongkao.mapper.*;
@@ -802,17 +922,15 @@ public class PaperService {
     private final RegionMapper regionMapper;
 
     /**
-     * 分页查询试卷列表（含地区名称）
+     * 分页查询试卷列表（含地区名称），使用 MyBatis-Plus IPage
      */
     public PageResult<Paper> listPapers(PaperQueryRequest req) {
         String category = req.getCategory() != null ? req.getCategory() : "行测";
-        long offset = (long) (req.getPage() - 1) * req.getPageSize();
 
-        List<Paper> papers = paperMapper.selectPageWithRegion(
-                category, req.getRegionId(), offset, req.getPageSize());
-        long total = paperMapper.countByFilter(category, req.getRegionId());
+        Page<Paper> page = new Page<>(req.getPage(), req.getPageSize());
+        IPage<Paper> result = paperMapper.selectPageWithRegion(page, category, req.getRegionId());
 
-        return PageResult.of(papers, total, req.getPage(), req.getPageSize());
+        return PageResult.of(result.getRecords(), result.getTotal(), req.getPage(), req.getPageSize());
     }
 
     /**
@@ -845,33 +963,12 @@ public class PaperService {
         LambdaQueryWrapper<MaterialGroup> mgWrapper = new LambdaQueryWrapper<>();
         mgWrapper.eq(MaterialGroup::getPaperId, paperId)
                  .orderByAsc(MaterialGroup::getSortOrder);
-        List<MaterialGroup> materials = materialGroupMapper.selectList(mgWrapper);
-        vo.setMaterials(materials.stream().map(mg -> {
-            MaterialGroupVO mgVo = new MaterialGroupVO();
-            mgVo.setId(mg.getId());
-            mgVo.setTitle(mg.getTitle());
-            mgVo.setContent(mg.getContent());
-            mgVo.setSortOrder(mg.getSortOrder());
-            return mgVo;
-        }).collect(Collectors.toList()));
+        vo.setMaterials(materialGroupMapper.selectList(mgWrapper).stream()
+                .map(MaterialGroupVO::from).collect(Collectors.toList()));
 
         // 题目（不含答案）
-        List<Question> questions = questionMapper.selectByPaperId(paperId);
-        vo.setQuestions(questions.stream().map(q -> {
-            QuestionVO qVo = new QuestionVO();
-            qVo.setId(q.getId());
-            qVo.setMaterialGroupId(q.getMaterialGroupId());
-            qVo.setSortOrder(q.getSortOrder());
-            qVo.setModule(q.getModule());
-            qVo.setSubModule(q.getSubModule());
-            qVo.setKnowledgePoint(q.getKnowledgePoint());
-            qVo.setType(q.getType());
-            qVo.setContent(q.getContent());
-            qVo.setOptions(q.getOptions());
-            qVo.setImages(q.getImages());
-            qVo.setScore(q.getScore());
-            return qVo;
-        }).collect(Collectors.toList()));
+        vo.setQuestions(questionMapper.selectByPaperId(paperId).stream()
+                .map(QuestionVO::from).collect(Collectors.toList()));
 
         return vo;
     }
@@ -883,39 +980,23 @@ public class PaperService {
         LambdaQueryWrapper<MaterialGroup> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(MaterialGroup::getPaperId, paperId)
                .orderByAsc(MaterialGroup::getSortOrder);
-        List<MaterialGroup> groups = materialGroupMapper.selectList(wrapper);
-        return groups.stream().map(mg -> {
-            MaterialGroupVO vo = new MaterialGroupVO();
-            vo.setId(mg.getId());
-            vo.setTitle(mg.getTitle());
-            vo.setContent(mg.getContent());
-            vo.setSortOrder(mg.getSortOrder());
-            return vo;
-        }).collect(Collectors.toList());
+        return materialGroupMapper.selectList(wrapper).stream()
+                .map(MaterialGroupVO::from).collect(Collectors.toList());
     }
 
     /**
      * 按知识点查询题目（专项练习）
+     * 先查 ID 列表，Java 层随机选取，避免 ORDER BY RAND() 全表排序
      */
     public List<QuestionVO> getQuestionsByKnowledge(String module, String subModule,
                                                      String knowledgePoint, int limit) {
-        List<Question> questions = questionMapper.selectByKnowledge(
-                module, subModule, knowledgePoint, limit);
-        return questions.stream().map(q -> {
-            QuestionVO vo = new QuestionVO();
-            vo.setId(q.getId());
-            vo.setMaterialGroupId(q.getMaterialGroupId());
-            vo.setSortOrder(q.getSortOrder());
-            vo.setModule(q.getModule());
-            vo.setSubModule(q.getSubModule());
-            vo.setKnowledgePoint(q.getKnowledgePoint());
-            vo.setType(q.getType());
-            vo.setContent(q.getContent());
-            vo.setOptions(q.getOptions());
-            vo.setImages(q.getImages());
-            vo.setScore(q.getScore());
-            return vo;
-        }).collect(Collectors.toList());
+        List<Long> allIds = questionMapper.selectIdsByKnowledge(module, subModule, knowledgePoint);
+        if (allIds.isEmpty()) return List.of();
+
+        Collections.shuffle(allIds);
+        List<Long> selectedIds = allIds.subList(0, Math.min(limit, allIds.size()));
+        List<Question> questions = questionMapper.selectBatchIds(selectedIds);
+        return questions.stream().map(QuestionVO::from).collect(Collectors.toList());
     }
 }
 ```
@@ -930,6 +1011,52 @@ Expected: BUILD SUCCESS
 ```bash
 git add backend/src/main/java/com/gongkao/service/PaperService.java
 git commit -m "feat(P3): add PaperService with list, detail, materials, knowledge query"
+```
+
+---
+
+## Task 6.5: 更新 SecurityConfig 放行规则
+
+**Files:**
+- Modify: `backend/src/main/java/com/gongkao/config/SecurityConfig.java`
+
+> 试卷列表、详情、材料组、知识点查询、地区列表对游客公开；做题会话和答案提交需要登录。
+
+- [ ] **Step 1: 修改 SecurityConfig 添加放行规则**
+
+在 `authorizeHttpRequests` 的 `anyRequest().authenticated()` 之前添加：
+
+```java
+.requestMatchers("/api/regions/**").permitAll()
+.requestMatchers(org.springframework.http.HttpMethod.GET, "/api/papers/**").permitAll()
+```
+
+完整的 `authorizeHttpRequests` 部分应为：
+
+```java
+.authorizeHttpRequests(auth -> auth
+    .requestMatchers("/api/auth/**").permitAll()
+    .requestMatchers("/api/stats/**").permitAll()
+    .requestMatchers("/api/site-config/**").permitAll()
+    .requestMatchers("/api/proxy/**").permitAll()
+    .requestMatchers("/api/regions/**").permitAll()
+    .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/papers/**").permitAll()
+    .anyRequest().authenticated()
+)
+```
+
+> 注意：`GET /api/papers/**` 放行后，`POST /api/papers/user-answers/batch` 和其他 POST 端点仍然需要认证。但 `GET /api/papers/{id}/my-answers` 也会被放行——需要在 Controller 中手动校验 userId，或在 AnswerController 中使用完整路径匹配。
+
+- [ ] **Step 2: 验证编译**
+
+Run: `cd backend && mvn compile -q`
+Expected: BUILD SUCCESS
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add backend/src/main/java/com/gongkao/config/SecurityConfig.java
+git commit -m "feat(P3): permit public access to paper listing and regions API"
 ```
 
 ---
@@ -1180,6 +1307,10 @@ public class SessionController {
 
     private final SessionService sessionService;
 
+    private Result<?> requireAuth(Long userId) {
+        return userId == null ? Result.fail(401, "请先登录") : null;
+    }
+
     /**
      * POST /api/sessions
      * 创建做题会话
@@ -1188,6 +1319,7 @@ public class SessionController {
     public Result<PracticeSession> createSession(
             @AuthenticationPrincipal Long userId,
             @RequestBody SessionCreateRequest req) {
+        Result<?> err = requireAuth(userId); if (err != null) return (Result) err;
         return Result.ok(sessionService.createSession(userId, req));
     }
 
@@ -1198,6 +1330,7 @@ public class SessionController {
     @GetMapping
     public Result<List<PracticeSession>> listSessions(
             @AuthenticationPrincipal Long userId) {
+        Result<?> err = requireAuth(userId); if (err != null) return (Result) err;
         return Result.ok(sessionService.getUserSessions(userId));
     }
 
@@ -1209,6 +1342,7 @@ public class SessionController {
     public Result<PracticeSession> getSession(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long id) {
+        Result<?> err = requireAuth(userId); if (err != null) return (Result) err;
         return Result.ok(sessionService.getSession(id, userId));
     }
 
@@ -1221,6 +1355,7 @@ public class SessionController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long id,
             @RequestBody SessionUpdateRequest req) {
+        Result<?> err = requireAuth(userId); if (err != null) return (Result) err;
         return Result.ok(sessionService.updateSession(id, userId, req));
     }
 
@@ -1233,6 +1368,7 @@ public class SessionController {
             @AuthenticationPrincipal Long userId,
             @PathVariable Long id,
             @RequestBody SessionUpdateRequest req) {
+        Result<?> err = requireAuth(userId); if (err != null) return (Result) err;
         return Result.ok(sessionService.submitSession(id, userId, req));
     }
 }
@@ -1335,24 +1471,8 @@ public class AnswerService {
             ua.setIsCorrect(isCorrect);
             userAnswerMapper.insert(ua);
 
-            // 构建返回结果
-            QuestionWithAnswerVO vo = new QuestionWithAnswerVO();
-            vo.setId(question.getId());
-            vo.setMaterialGroupId(question.getMaterialGroupId());
-            vo.setSortOrder(question.getSortOrder());
-            vo.setModule(question.getModule());
-            vo.setSubModule(question.getSubModule());
-            vo.setKnowledgePoint(question.getKnowledgePoint());
-            vo.setType(question.getType());
-            vo.setContent(question.getContent());
-            vo.setOptions(question.getOptions());
-            vo.setAnswer(question.getAnswer());
-            vo.setExplanation(question.getExplanation());
-            vo.setImages(question.getImages());
-            vo.setScore(question.getScore());
-            vo.setUserAnswer(userAns);
-            vo.setIsCorrect(isCorrect);
-            resultQuestions.add(vo);
+            // 构建返回结果（使用 VO 的 from 方法）
+            resultQuestions.add(QuestionWithAnswerVO.from(question, userAns, isCorrect));
         }
 
         int total = items.size();
@@ -1383,28 +1503,13 @@ public class AnswerService {
         Map<Long, Question> questionMap = questions.stream()
                 .collect(Collectors.toMap(Question::getId, q -> q));
 
-        return answers.stream().map(ua -> {
-            Question q = questionMap.get(ua.getQuestionId());
-            if (q == null) return null;
-
-            QuestionWithAnswerVO vo = new QuestionWithAnswerVO();
-            vo.setId(q.getId());
-            vo.setMaterialGroupId(q.getMaterialGroupId());
-            vo.setSortOrder(q.getSortOrder());
-            vo.setModule(q.getModule());
-            vo.setSubModule(q.getSubModule());
-            vo.setKnowledgePoint(q.getKnowledgePoint());
-            vo.setType(q.getType());
-            vo.setContent(q.getContent());
-            vo.setOptions(q.getOptions());
-            vo.setAnswer(q.getAnswer());
-            vo.setExplanation(q.getExplanation());
-            vo.setImages(q.getImages());
-            vo.setScore(q.getScore());
-            vo.setUserAnswer(ua.getUserAnswer());
-            vo.setIsCorrect(ua.getIsCorrect());
-            return vo;
-        }).filter(v -> v != null).collect(Collectors.toList());
+        return answers.stream()
+                .map(ua -> {
+                    Question q = questionMap.get(ua.getQuestionId());
+                    return q != null ? QuestionWithAnswerVO.from(q, ua.getUserAnswer(), ua.getIsCorrect()) : null;
+                })
+                .filter(v -> v != null)
+                .collect(Collectors.toList());
     }
 }
 ```
@@ -1454,23 +1559,25 @@ public class AnswerController {
 
     /**
      * POST /api/papers/user-answers/batch
-     * 批量提交答案 + 自动判分
+     * 批量提交答案 + 自动判分（需登录）
      */
     @PostMapping("/user-answers/batch")
     public Result<BatchAnswerResultVO> batchSubmit(
             @AuthenticationPrincipal Long userId,
             @RequestBody BatchAnswerRequest req) {
+        if (userId == null) return Result.fail(401, "请先登录");
         return Result.ok(answerService.batchSubmit(userId, req));
     }
 
     /**
      * GET /api/papers/{id}/my-answers
-     * 获取我在某试卷的作答记录
+     * 获取我在某试卷的作答记录（需登录）
      */
     @GetMapping("/{id}/my-answers")
     public Result<List<QuestionWithAnswerVO>> getMyAnswers(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long id) {
+        if (userId == null) return Result.fail(401, "请先登录");
         return Result.ok(answerService.getMyAnswers(userId, id));
     }
 }
@@ -1729,7 +1836,91 @@ git commit -m "feat(P3): add FileController for MinIO file upload"
 
 ---
 
+## Task 13.5: 前端 — Empty.vue + Modal.vue 基础组件
+
+**Files:**
+- Create: `frontend/.vitepress/theme/components/Empty.vue`
+- Create: `frontend/.vitepress/theme/components/Modal.vue`
+
+- [ ] **Step 1: 创建 Empty.vue**
+
+```vue
+<!-- frontend/.vitepress/theme/components/Empty.vue -->
+<template>
+  <div class="empty-state">
+    <p>{{ text || '暂无数据' }}</p>
+  </div>
+</template>
+
+<script setup>
+defineProps({
+  text: { type: String, default: '' }
+})
+</script>
+
+<style scoped>
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+</style>
+```
+
+- [ ] **Step 2: 创建 Modal.vue**
+
+```vue
+<!-- frontend/.vitepress/theme/components/Modal.vue -->
+<template>
+  <Teleport to="body">
+    <div class="modal-overlay" @click.self="$emit('close')">
+      <div class="modal-content">
+        <button class="modal-close" @click="$emit('close')">&times;</button>
+        <slot />
+      </div>
+    </div>
+  </Teleport>
+</template>
+
+<script setup>
+defineEmits(['close'])
+</script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.5); display: flex;
+  align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-content {
+  background: var(--vp-c-bg); border-radius: 12px;
+  padding: 24px; max-width: 480px; width: 90%;
+  position: relative; max-height: 80vh; overflow-y: auto;
+}
+.modal-close {
+  position: absolute; top: 12px; right: 16px;
+  background: none; border: none; font-size: 24px;
+  cursor: pointer; color: var(--vp-c-text-2); line-height: 1;
+}
+</style>
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add frontend/.vitepress/theme/components/Empty.vue \
+        frontend/.vitepress/theme/components/Modal.vue
+git commit -m "feat(P3): add Empty and Modal base components"
+```
+
+---
+
 ## Task 14: 前端 — PaperList.vue 试卷列表组件
+
+> **实际实现说明：** PaperList.vue 已对齐原站样式重写：
+> - **题库模式（bank）**：地区筛选使用 pill 标签按钮（非 `<select>`），试卷卡片显示标题+地区 tag+星级评分，分页改为"加载更多"按钮并显示进度（已加载 x/y）。
+> - **专项练习模式（special）**：使用卡片网格布局，6 个模块各有独立卡片（言语理解📖、数量关系🔢、判断推理🧩、资料分析📊、常识判断🌍、政治理论🏛️），每张卡片带描述 + 10/20/30 题快选按钮 + 自定义数量输入。点击按钮直接请求题目并跳转练习页面，无需额外步骤。
 
 **Files:**
 - Modify: `frontend/.vitepress/theme/utils/api.js` — 追加试卷相关 API
@@ -1745,44 +1936,53 @@ git commit -m "feat(P3): add FileController for MinIO file upload"
 // 试卷相关 API
 export const paperApi = {
   list(params) {
-    return get('/papers', params)
+    return api.get('/papers', { params })
   },
   getDetail(id) {
-    return get(`/papers/${id}`)
+    return api.get(`/papers/${id}`)
   },
   getMaterials(paperId) {
-    return get(`/papers/${paperId}/materials`)
+    return api.get(`/papers/${paperId}/materials`)
   },
   getQuestionsByKnowledge(params) {
-    return get('/papers/questions/by-knowledge', params)
+    return api.get('/papers/questions/by-knowledge', { params })
   },
   batchSubmit(data) {
-    return post('/papers/user-answers/batch', data)
+    return api.post('/papers/user-answers/batch', data)
   },
   getMyAnswers(paperId) {
-    return get(`/papers/${paperId}/my-answers`)
+    return api.get(`/papers/${paperId}/my-answers`)
+  },
+}
+
+// 地区 API
+export const regionApi = {
+  list() {
+    return api.get('/regions')
   },
 }
 
 // 做题会话 API
 export const sessionApi = {
   create(data) {
-    return post('/sessions', data)
+    return api.post('/sessions', data)
   },
   list() {
-    return get('/sessions')
+    return api.get('/sessions')
   },
   get(id) {
-    return get(`/sessions/${id}`)
+    return api.get(`/sessions/${id}`)
   },
   update(id, data) {
-    return put(`/sessions/${id}`, data)
+    return api.put(`/sessions/${id}`, data)
   },
   submit(id, data) {
-    return post(`/sessions/${id}/submit`, data)
+    return api.post(`/sessions/${id}/submit`, data)
   },
 }
 ```
+
+> 注意：这里使用 `api.get()`/`api.post()`/`api.put()` 直接调用 axios 实例方法。响应拦截器已统一处理了 `success === false` 的情况，返回的是完整的 `Result` 对象（含 `code`, `success`, `data` 字段）。
 
 - [ ] **Step 2: 创建 PaperList.vue**
 
@@ -1817,8 +2017,8 @@ export const sessionApi = {
     <!-- 加载中 -->
     <div v-if="loading" class="loading">加载中...</div>
 
-    <!-- 试卷列表 -->
-    <div v-else class="papers">
+    <!-- 试卷列表（题库模式） -->
+    <div v-if="mode === 'bank'" v-else class="papers">
       <div v-for="paper in papers" :key="paper.id" class="paper-card"
            @click="startPractice(paper)">
         <div class="paper-title">{{ paper.title }}</div>
@@ -1832,6 +2032,16 @@ export const sessionApi = {
       <Empty v-if="papers.length === 0" text="暂无试卷" />
     </div>
 
+    <!-- 题目列表（专项练习模式） -->
+    <div v-if="mode === 'special'" v-else class="papers">
+      <div v-if="!filters.module" class="hint">请先选择模块</div>
+      <div v-else-if="questions.length > 0" class="special-start">
+        <p>已筛选 {{ questions.length }} 道{{ filters.module }}题目</p>
+        <button class="btn-primary" @click="startPractice()">开始练习</button>
+      </div>
+      <Empty v-else text="该模块暂无题目" />
+    </div>
+
     <!-- 分页 -->
     <div class="pagination" v-if="total > pageSize">
       <button :disabled="page <= 1" @click="page--; loadPapers()">上一页</button>
@@ -1843,7 +2053,7 @@ export const sessionApi = {
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { paperApi, sessionApi } from '../utils/api.js'
+import { paperApi, regionApi, sessionApi } from '../utils/api.js'
 import Empty from './Empty.vue'
 
 const props = defineProps({
@@ -1853,6 +2063,7 @@ const props = defineProps({
 
 const regions = ref([])
 const papers = ref([])
+const questions = ref([])
 const loading = ref(false)
 const page = ref(1)
 const pageSize = 20
@@ -1867,19 +2078,37 @@ const filters = ref({
 async function loadPapers() {
   loading.value = true
   try {
-    const params = {
-      category: props.category,
-      regionId: filters.value.regionId,
-      page: page.value,
-      pageSize
-    }
-    const res = await paperApi.list(params)
-    if (res.code === 0) {
-      papers.value = res.data.list
-      total.value = res.data.total
+    if (props.mode === 'special') {
+      // 专项练习：按知识点查题目
+      if (!filters.value.module) {
+        papers.value = []
+        total.value = 0
+        return
+      }
+      const params = { module: filters.value.module, limit: 50 }
+      if (filters.value.subModule) params.sub_module = filters.value.subModule
+      const res = await paperApi.getQuestionsByKnowledge(params)
+      if (res.success) {
+        // 适配为类似试卷列表的结构，每道题包装成一个"卡片"
+        questions.value = res.data || []
+        total.value = questions.value.length
+      }
+    } else {
+      // 题库模式：查试卷列表
+      const params = {
+        category: props.category,
+        regionId: filters.value.regionId,
+        page: page.value,
+        pageSize
+      }
+      const res = await paperApi.list(params)
+      if (res.success) {
+        papers.value = res.data.list
+        total.value = res.data.total
+      }
     }
   } catch (e) {
-    console.error('加载试卷失败', e)
+    console.error('加载数据失败', e)
   } finally {
     loading.value = false
   }
@@ -1887,29 +2116,24 @@ async function loadPapers() {
 
 async function loadRegions() {
   try {
-    // 直接查 region 表，复用 paperApi（后续可独立接口）
-    const res = await paperApi.list({ category: props.category, pageSize: 1 })
-    // 暂时硬编码地区列表，待后端提供 /api/regions 接口后替换
-    regions.value = [
-      { id: 1, name: '国考' },
-      { id: 2, name: '北京' },
-      { id: 3, name: '上海' },
-      { id: 4, name: '广东' },
-      { id: 5, name: '浙江' },
-      { id: 6, name: '江苏' },
-      { id: 7, name: '山东' },
-      { id: 8, name: '四川' },
-      { id: 9, name: '河南' },
-      { id: 10, name: '湖北' }
-    ]
+    const res = await regionApi.list()
+    if (res.success) {
+      regions.value = res.data
+    }
   } catch (e) {
     console.error('加载地区失败', e)
   }
 }
 
 function startPractice(paper) {
-  // 跳转到在线练习页，URL 携带 paperId
-  window.location.href = `/practice/online/?paperId=${paper.id}`
+  if (props.mode === 'special') {
+    // 专项练习：用 URL 参数传递题目 ID 列表
+    const qIds = questions.value.map(q => q.id).join(',')
+    window.location.href = `/practice/online/?questionIds=${qIds}`
+  } else {
+    // 题库模式：跳转到在线练习页，URL 携带 paperId
+    window.location.href = `/practice/online/?paperId=${paper.id}`
+  }
 }
 
 onMounted(() => {
@@ -1952,6 +2176,13 @@ onMounted(() => {
 }
 .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
+.hint { text-align: center; padding: 40px; color: var(--vp-c-text-2); font-size: 15px; }
+.special-start { text-align: center; padding: 20px; }
+.special-start p { margin-bottom: 16px; color: var(--vp-c-text-2); }
+.btn-primary {
+  padding: 8px 24px; background: var(--vp-c-brand);
+  color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;
+}
 </style>
 ```
 
@@ -2147,6 +2378,12 @@ const result = ref(null)
 const showSubmitModal = ref(false)
 
 let timer = null
+let saveTimer = null
+
+function debouncedSave() {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(saveProgress, 2000)
+}
 
 const currentQuestion = computed(() => questions.value[currentIndex.value])
 
@@ -2199,7 +2436,7 @@ function formatTime(seconds) {
 function selectAnswer(label) {
   if (result.value) return
   answers.value[currentQuestion.value.id] = label
-  saveProgress()
+  debouncedSave()
 }
 
 function prevQuestion() {
@@ -2224,7 +2461,7 @@ async function togglePause() {
         }))
       )
     })
-    if (res.code === 0) session.value = res.data
+    if (res.success) session.value = res.data
     if (newStatus === 'paused') stopTimer()
     else startTimer()
   } catch (e) {
@@ -2276,7 +2513,7 @@ async function submitExam() {
       sessionId: session.value.id,
       answers: answerItems
     })
-    if (res.code === 0) {
+    if (res.success) {
       result.value = res.data
     }
   } catch (e) {
@@ -2291,6 +2528,7 @@ function startTimer() {
 
 function stopTimer() {
   if (timer) { clearInterval(timer); timer = null }
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null }
 }
 
 async function init() {
@@ -2304,14 +2542,14 @@ async function init() {
   try {
     // 加载试卷详情
     const detailRes = await paperApi.getDetail(paperId)
-    if (detailRes.code !== 0) return
+    if (!detailRes.success) return
     paperDetail.value = detailRes.data
     questions.value = detailRes.data.questions || []
     materials.value = detailRes.data.materials || []
 
     // 创建/恢复做题会话
     const sessionRes = await sessionApi.create({ paperId: Number(paperId) })
-    if (sessionRes.code === 0) {
+    if (sessionRes.success) {
       session.value = sessionRes.data
       // 恢复已有进度
       if (sessionRes.data.answers) {
@@ -2423,6 +2661,13 @@ onUnmounted(stopTimer)
 .rq-explanation { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--vp-c-divider); }
 .rq-explanation h4 { margin: 0 0 4px; font-size: 14px; }
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
+.hint { text-align: center; padding: 40px; color: var(--vp-c-text-2); font-size: 15px; }
+.special-start { text-align: center; padding: 20px; }
+.special-start p { margin-bottom: 16px; color: var(--vp-c-text-2); }
+.btn-primary {
+  padding: 8px 24px; background: var(--vp-c-brand);
+  color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 15px;
+}
 </style>
 ```
 
@@ -2530,7 +2775,6 @@ INSERT INTO question (id, paper_id, sort_order, module, sub_module, knowledge_po
  'B',
  '<p>2023年GDP=8.5万亿，同比增长6.2%。增长量=8.5÷(1+6.2%)×6.2%≈8.5÷1.062×0.062≈0.496万亿，约0.50万亿。</p>',
  1.0),
- 'single_choice'),
 
 (8, 1, 8, '资料分析', '文字资料', '比重计算', 'single_choice',
  '<p>根据上述资料，2023年该省第三产业增加值占GDP的比重约为：</p>',

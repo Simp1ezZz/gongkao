@@ -106,6 +106,10 @@ services:
     environment:
       VITE_PROXY_BACKEND: http://backend:8080
       VITE_PROXY_AI: http://ai-service:8000
+    volumes:
+      - ./frontend/pages:/app/pages
+      - ./frontend/.vitepress:/app/.vitepress
+      - ./frontend/public:/app/public
     depends_on:
       - backend
       - ai-service

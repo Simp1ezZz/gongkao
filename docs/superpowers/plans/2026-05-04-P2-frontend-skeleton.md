@@ -111,26 +111,7 @@ export default defineConfig({
       { text: '个人中心', link: '/login/' },
     ],
 
-    sidebar: {
-      '/题库/': getSidebar(),
-      '/essay-bank/': getSidebar(),
-      '/practice/': getSidebar(),
-      '/shenlun-practice/': getSidebar(),
-      '/idiom/': getSidebar(),
-      '/high-freq-words/': getSidebar(),
-      '/high-freq-idiom/': getSidebar(),
-      '/wrong-questions/': getSidebar(),
-      '/今日热榜/': getSidebar(),
-      '/checkin/': getSidebar(),
-      '/history-today/': getSidebar(),
-      '/news/': getSidebar(),
-      '/login/': getSidebar(),
-      '/essay-review/': getSidebar(),
-      '/ai-recommended/': getSidebar(),
-      '/study-plan/': getSidebar(),
-      '/secrets/': getSidebar(),
-      '/must-read/': getSidebar(),
-    },
+> **实际实现说明：** 侧边栏当前仅包含已实现功能（题库练习组：专项练习、行测题库），后续模块实现后逐步添加学习工具和个人中心组。当前 sidebar 配置仅对 `/题库/`、`/practice/`、`/login/` 路径生效。
 
     darkModeSwitchLabel: '切换主题',
     returnToTopLabel: '返回顶部',
@@ -684,10 +665,15 @@ git commit -m "feat(frontend): add global custom CSS with card, button, tag, loa
 
 ## Task 4: 首页 Hero + 特性卡片 + 快捷导航
 
+> **实际实现说明：** 使用 VitePress 内置 `features` frontmatter 渲染 3 张特性卡片，自定义 `HomeQuickNav.vue` 组件渲染快捷导航网格（仅展示已实现的功能入口）。侧边栏仅包含已实现功能的链接。
+
 **Files:**
 - Modify: `frontend/pages/index.md`
+- Create: `frontend/.vitepress/theme/components/HomeQuickNav.vue`
 
-- [ ] **Step 1: 创建完整首页**
+- [x] **Step 1: 创建完整首页（使用 VitePress features frontmatter）**
+
+首页使用 VitePress 内置 `features` 字段渲染 3 张特性卡片，底部通过 `<HomeQuickNav />` 组件渲染已实现功能的快捷导航网格。
 
 ```markdown
 ---
@@ -696,9 +682,6 @@ hero:
   name: "BALA 公考"
   text: "上岸没烦恼"
   tagline: "不负每一次努力，只为助你稳稳上岸、一战成公。"
-  image:
-    src: /logo1.png
-    alt: BALA 公考
   actions:
     - theme: brand
       text: 个人中心
@@ -709,14 +692,27 @@ hero:
     - theme: alt
       text: 上岸秘籍
       link: /secrets/
+features:
+  - icon: 📊
+    title: 行测智能分析
+    details: AI智能诊断学习情况，分析各模块正确率，提供个性化提升建议，助您精准突破薄弱环节。
+    link: /practice/history/
+  - icon: 📚
+    title: 资料合集
+    details: 汇集公考学习资料，包含行测、申论、面试等各类资源，助力高效备考，一站式学习。
+    link: https://my.feishu.cn/wiki/UuZWwzr6bivixHkPQ07c6QO7nGe?from=from_copylink
+  - icon: 🤖
+    title: 申论智能批改
+    details: AI智能批改申论作文，提供专业点评与改进建议，帮助您快速提升申论写作水平。
+    link: /essay-review/
 ---
 
-<HomeFeatures />
-<QuickNav />
-<FooterBanner />
+<HomeQuickNav />
 ```
 
-- [ ] **Step 2: 创建 HomeFeatures.vue**
+- [x] **Step 2: 创建 HomeQuickNav.vue（快捷导航网格组件）**
+
+> 仅展示已实现功能模块的快捷导航卡片（专项练习、行测题库、个人中心），每张卡片带 emoji、标题、描述和标签。后续模块实现后可追加到 `navItems` 数组。
 
 ```vue
 <!-- frontend/.vitepress/theme/components/HomeFeatures.vue -->

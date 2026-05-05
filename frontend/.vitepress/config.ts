@@ -34,7 +34,35 @@ export default defineConfig({
       { text: '专项练习', link: '/practice/special/' },
       { text: '个人中心', link: '/login/' },
     ],
-    sidebar: {},
+    sidebar: {
+      '/题库/': [
+        {
+          text: '题库练习',
+          items: [
+            { text: '💪 专项练习', link: '/practice/special/' },
+            { text: '🖊️ 行测题库', link: '/题库/' },
+          ]
+        }
+      ],
+      '/practice/': [
+        {
+          text: '题库练习',
+          items: [
+            { text: '💪 专项练习', link: '/practice/special/' },
+            { text: '🖊️ 行测题库', link: '/题库/' },
+          ]
+        }
+      ],
+      '/login/': [
+        {
+          text: '题库练习',
+          items: [
+            { text: '💪 专项练习', link: '/practice/special/' },
+            { text: '🖊️ 行测题库', link: '/题库/' },
+          ]
+        }
+      ],
+    },
     darkModeSwitchLabel: '切换主题',
     returnToTopLabel: '返回顶部',
     sidebarMenuLabel: '菜单',
