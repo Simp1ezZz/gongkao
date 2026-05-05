@@ -13,6 +13,7 @@ public class PaperImportRequest {
         private Integer year;
         private String category;
         private Integer regionId;
+        private String regionName;
     }
 
     @Data

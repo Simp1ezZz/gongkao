@@ -4,9 +4,12 @@ import com.gongkao.dto.PaperImportRequest;
 import com.gongkao.entity.MaterialGroup;
 import com.gongkao.entity.Paper;
 import com.gongkao.entity.Question;
+import com.gongkao.entity.Region;
 import com.gongkao.mapper.MaterialGroupMapper;
 import com.gongkao.mapper.PaperMapper;
 import com.gongkao.mapper.QuestionMapper;
+import com.gongkao.mapper.RegionMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,15 +26,34 @@ public class AdminService {
     private final PaperMapper paperMapper;
     private final MaterialGroupMapper materialGroupMapper;
     private final QuestionMapper questionMapper;
+    private final RegionMapper regionMapper;
 
     @Transactional
     public Long importPaper(PaperImportRequest req) {
+        // 0. Resolve region
+        Integer regionId = req.getPaper().getRegionId();
+        String regionName = req.getPaper().getRegionName();
+        if (regionId == null && regionName != null && !regionName.isBlank()) {
+            Region existing = regionMapper.selectOne(
+                    new LambdaQueryWrapper<Region>().eq(Region::getName, regionName));
+            if (existing != null) {
+                regionId = existing.getId();
+            } else {
+                Region r = new Region();
+                r.setName(regionName);
+                r.setCategory("provincial");
+                r.setSortOrder(0);
+                regionMapper.insert(r);
+                regionId = r.getId();
+            }
+        }
+
         // 1. Create paper
         Paper paper = new Paper();
         paper.setTitle(req.getPaper().getTitle());
         paper.setYear(req.getPaper().getYear());
         paper.setCategory(req.getPaper().getCategory());
-        paper.setRegionId(req.getPaper().getRegionId());
+        paper.setRegionId(regionId);
         paper.setQuestionCount(req.getQuestions() != null ? req.getQuestions().size() : 0);
         paperMapper.insert(paper);
 

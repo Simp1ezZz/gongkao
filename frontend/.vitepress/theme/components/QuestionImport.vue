@@ -73,10 +73,7 @@
           </div>
           <div class="qi-field">
             <label>地区</label>
-            <select v-model="regionId">
-              <option :value="null">不限</option>
-              <option v-for="r in regions" :key="r.id" :value="r.id">{{ r.name }}</option>
-            </select>
+            <input v-model="regionName" placeholder="如：安徽、国考" />
           </div>
         </div>
         <div class="qi-field">
@@ -210,7 +207,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { importApi, regionApi, isLoggedIn } from '../utils/api.js'
+import { importApi, isLoggedIn } from '../utils/api.js'
 
 const step = ref(1)
 const questionFile = ref(null)
@@ -218,10 +215,9 @@ const answerFile = ref(null)
 const paperTitle = ref('')
 const paperYear = ref(new Date().getFullYear())
 const paperCategory = ref('行测')
-const regionId = ref(null)
+const regionName = ref('')
 const selectedModel = ref(null)
 const models = ref([])
-const regions = ref([])
 
 // Parse results
 const questions = ref([])
@@ -302,7 +298,7 @@ async function startParse() {
   formData.append('paper_title', paperTitle.value)
   formData.append('paper_year', paperYear.value)
   formData.append('paper_category', paperCategory.value)
-  if (regionId.value) formData.append('region_id', regionId.value)
+  if (regionName.value) formData.append('region_name', regionName.value)
   if (selectedModel.value) formData.append('model_name', selectedModel.value)
 
   try {
@@ -350,7 +346,7 @@ async function confirmImport() {
       title: paperTitle.value,
       year: paperYear.value,
       category: paperCategory.value,
-      regionId: regionId.value,
+      regionName: regionName.value || null,
     },
     questions: questions.value.map(q => ({
       sort_order: q.sort_order,
@@ -394,14 +390,10 @@ onMounted(async () => {
     return
   }
   try {
-    const [modelRes, regionRes] = await Promise.all([
-      importApi.getModels(),
-      regionApi.list(),
-    ])
+    const modelRes = await importApi.getModels()
     models.value = modelRes.models || []
-    regions.value = regionRes.list || regionRes || []
   } catch (e) {
-    console.warn('Failed to load models/regions', e)
+    console.warn('Failed to load models', e)
   }
 })
 </script>
