@@ -89,7 +89,7 @@
         <div class="nav-buttons">
           <button :disabled="currentIndex <= 0" @click="prevQuestion">← 上一题</button>
           <button v-if="currentIndex < questions.length - 1" @click="nextQuestion">下一题 →</button>
-          <button v-if="result" class="btn-restart" @click="restartPractice">🔄 重新开始</button>
+          <button v-if="result && !isHistoryMode" class="btn-restart" @click="restartPractice">🔄 重新开始</button>
         </div>
 
         <!-- AI 深度分析按钮 -->
@@ -191,7 +191,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { paperApi, sessionApi } from '../utils/api.js'
+import { paperApi, sessionApi, historyApi } from '../utils/api.js'
 import { renderLatex } from '../utils/latex.js'
 import Modal from './Modal.vue'
 import Login from './Login.vue'
@@ -210,6 +210,10 @@ const showLoginModal = ref(false)
 const timerRunning = ref(false)
 const pausedLocally = ref(false)
 const expandedSet = ref(new Set())
+
+const isHistoryMode = computed(() => {
+  return !!new URLSearchParams(window.location.search).get('historySessionId')
+})
 
 let timer = null
 let saveTimer = null
@@ -564,9 +568,49 @@ async function init() {
   const params = new URLSearchParams(window.location.search)
   const paperId = params.get('paperId')
   const questionIds = params.get('questionIds')
+  const historySessionId = params.get('historySessionId')
 
-  if (!paperId && !questionIds) {
+  if (!paperId && !questionIds && !historySessionId) {
     loaded.value = true
+    return
+  }
+
+  // 做题历史回顾模式：加载数据直接进入提交结果状态
+  if (historySessionId) {
+    try {
+      const res = await historyApi.getDetail(Number(historySessionId))
+      if (!res.success) { loaded.value = true; return }
+      const detail = res.data
+      paperDetail.value = { title: detail.paperTitle, questionCount: detail.summary.totalQuestions }
+      questions.value = detail.questions.map(q => ({
+        id: q.questionId,
+        sortOrder: q.sortOrder,
+        module: q.module,
+        type: 'single_choice',
+        content: q.content,
+        options: q.options,
+        answer: q.correctAnswer,
+        explanation: q.explanation,
+      }))
+      timeElapsed.value = detail.timeElapsed || 0
+      result.value = {
+        correctCount: detail.summary.correctCount,
+        wrongCount: detail.summary.wrongCount,
+        accuracy: detail.summary.accuracy,
+        questions: detail.questions.map(q => ({
+          id: q.questionId,
+          content: q.content,
+          userAnswer: q.userAnswer,
+          answer: q.correctAnswer,
+          explanation: q.explanation,
+          isCorrect: q.isCorrect,
+        }))
+      }
+      loaded.value = true
+    } catch (e) {
+      console.error('加载做题历史失败', e)
+      loaded.value = true
+    }
     return
   }
 
