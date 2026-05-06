@@ -115,6 +115,8 @@
 | | `/api/papers/user-answers/batch` | POST |
 | | `/api/papers/{id}/my-answers` | GET |
 | 会话 | `/api/sessions` (创建/查询/更新/删除) | POST/GET/PUT/DELETE |
+| 做题历史 | `/api/practice/history` (列表，支持 page/pageSize/type 参数) | GET |
+| | `/api/practice/history/{sessionId}` (逐题详情) | GET |
 | 分析 | `/api/analysis/history` | GET |
 | | `/api/analysis/{id}` | GET/DELETE |
 | 申论批改记录 | `/api/essay-review` | GET |
@@ -591,7 +593,7 @@ Redis 用途:
 | `/essay-bank/` | EssayBank | 申论题库 |
 | `/practice/special/` | PaperList | 专项练习 |
 | `/practice/online/` | OnlinePractice | 在线练习 |
-| `/practice/history/` | PracticeHistory | 行测智能分析 |
+| `/practice/history/` | PracticeHistory | 做题历史（整卷+专项练习记录） |
 | `/shenlun-practice/` | ShenlunPractice | 申论练习 |
 | `/idiom/` | IdiomSearch | 成语查询 |
 | `/high-freq-words/` | HighFreqWords | 高频词语 |
@@ -609,7 +611,7 @@ Redis 用途:
 | `/must-read/` | MustRead | 进站必读 |
 
 侧边栏分组（按实现阶段逐步添加，当前仅包含已实现功能）:
-- 题库练习: 专项练习、行测题库
+- 题库练习: 专项练习、行测题库、做题历史
 - 学习工具: （待 P4-P5 实现）
 - 个人中心: （待 P4-P5 实现）
 
@@ -659,7 +661,7 @@ Redis 用途:
 - 数据: Python爬取脚本，导入少量测试数据
 - MinIO: 题目图片上传/展示
 
-**验收:** 选试卷→做题→暂停/恢复→提交→查看正确率→错题自动归集
+**验收:** 选试卷→做题→暂停/恢复→提交→查看正确率→错题自动归集→查看做题历史
 
 ### P4 — 申论题库 + AI批改
 
@@ -668,7 +670,8 @@ Redis 用途:
 - FastAPI: 申论AI批改(流式)、行测AI分析(流式)、题目AI解析(流式)
 - FastAPI: LLM调用封装(支持OpenAI/Anthropic双格式，可配置api_url/api_key/model)
 - Java回调FastAPI结果持久化
-- 前端: EssayBank、ShenlunPractice、EssayReview、PracticeHistory
+- 前端: EssayBank、ShenlunPractice、EssayReview
+- 前端: PracticeHistory 页面增加 AI 分析入口（跳转到 /practice/history/{sessionId}/analysis）
 
 **验收:** 写申论→AI批改→看评分+采分点+建议; 做行测→AI分析→看诊断报告; 任何题目可看AI解析
 
