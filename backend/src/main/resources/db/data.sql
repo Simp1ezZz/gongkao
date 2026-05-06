@@ -1,5 +1,9 @@
 SET NAMES utf8mb4;
 
+-- 默认管理员账号 (密码: admin123)
+INSERT INTO user (email, role, password_hash, nickname) VALUES
+('admin@admin.com', 'admin', '$2b$12$9hD6Qn7TeU9v2bZltYkKx.952wImwE3qEQC9Hlqp9DhTxEXkL.Blm', '管理员');
+
 -- 地区种子数据
 INSERT INTO region (name, category, sort_order) VALUES
 ('国考', 'national', 0),
