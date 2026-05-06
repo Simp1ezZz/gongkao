@@ -16,14 +16,18 @@ public class SessionService {
     private final PracticeSessionMapper sessionMapper;
 
     public PracticeSession createSession(Long userId, SessionCreateRequest req) {
-        PracticeSession existing = sessionMapper.selectActiveByUserPaper(userId, req.getPaperId());
-        if (existing != null) {
-            return existing;
+        // 整卷练习：检查是否有活跃的 session
+        if (req.getPaperId() != null) {
+            PracticeSession existing = sessionMapper.selectActiveByUserPaper(userId, req.getPaperId());
+            if (existing != null) {
+                return existing;
+            }
         }
 
         PracticeSession session = new PracticeSession();
         session.setUserId(userId);
         session.setPaperId(req.getPaperId());
+        session.setModule(req.getModule());
         session.setStatus("ongoing");
         session.setTimeElapsed(0);
         session.setCurrentIndex(0);

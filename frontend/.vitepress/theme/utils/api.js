@@ -162,4 +162,17 @@ export const importApi = {
   }
 }
 
+// 做题历史 API
+export const historyApi = {
+  summary() {
+    return api.get('/practice/history/summary')
+  },
+  list(params) {
+    return api.get('/practice/history', { params })
+  },
+  getDetail(sessionId) {
+    return api.get(`/practice/history/${sessionId}`)
+  }
+}
+
 export { api, aiApi, API_BASE }

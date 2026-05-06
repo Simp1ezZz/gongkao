@@ -32,6 +32,7 @@ export default defineConfig({
       { text: '行测', link: '/题库/' },
       { text: '申论', link: '/essay-bank/' },
       { text: '专项练习', link: '/practice/special/' },
+      { text: '做题历史', link: '/practice/history/' },
       { text: '个人中心', link: '/login/' },
       { text: '试卷导入', link: '/admin/import/' },
 
@@ -43,6 +44,7 @@ export default defineConfig({
           items: [
             { text: '💪 专项练习', link: '/practice/special/' },
             { text: '🖊️ 行测题库', link: '/题库/' },
+            { text: '📋 做题历史', link: '/practice/history/' },
           ]
         }
       ],
@@ -52,6 +54,7 @@ export default defineConfig({
           items: [
             { text: '💪 专项练习', link: '/practice/special/' },
             { text: '🖊️ 行测题库', link: '/题库/' },
+            { text: '📋 做题历史', link: '/practice/history/' },
           ]
         }
       ],
@@ -61,6 +64,17 @@ export default defineConfig({
           items: [
             { text: '💪 专项练习', link: '/practice/special/' },
             { text: '🖊️ 行测题库', link: '/题库/' },
+            { text: '📋 做题历史', link: '/practice/history/' },
+          ]
+        }
+      ],
+      '/practice/history/': [
+        {
+          text: '题库练习',
+          items: [
+            { text: '💪 专项练习', link: '/practice/special/' },
+            { text: '🖊️ 行测题库', link: '/题库/' },
+            { text: '📋 做题历史', link: '/practice/history/' },
           ]
         }
       ],

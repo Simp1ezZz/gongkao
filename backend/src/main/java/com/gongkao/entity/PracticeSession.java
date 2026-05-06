@@ -14,6 +14,7 @@ public class PracticeSession {
     private Long id;
     private Long userId;
     private Long paperId;
+    private String module;
     private String status;
     private Integer timeElapsed;
     private Integer currentIndex;

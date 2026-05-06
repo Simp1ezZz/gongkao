@@ -636,7 +636,6 @@ async function init() {
           if (sessionRes.data.answers) {
             try {
               const savedAnswers = JSON.parse(sessionRes.data.answers)
-              // 如果本地没有恢复的状态，用服务端的
               if (!restoredFromSpecial) {
                 savedAnswers.forEach(a => { answers.value[a.questionId] = a.answer })
               }
@@ -653,6 +652,23 @@ async function init() {
         }
       } catch (e) {
         console.warn('创建会话失败，切换到浏览模式', e)
+      }
+    }
+
+    // 已登录 + 专项练习模式：创建会话
+    if (!paperId && questionIds && localStorage.getItem('token')) {
+      const moduleName = params.get('module') || ''
+      const count = params.get('count') || questionIds.split(',').length
+      try {
+        const sessionRes = await sessionApi.create({
+          module: moduleName,
+          questionCount: Number(count)
+        })
+        if (sessionRes.success) {
+          session.value = sessionRes.data
+        }
+      } catch (e) {
+        console.warn('创建专项练习会话失败', e)
       }
     }
   } catch (e) {

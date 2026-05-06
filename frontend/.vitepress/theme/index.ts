@@ -7,6 +7,7 @@ import Empty from './components/Empty.vue'
 import HomeQuickNav from './components/HomeQuickNav.vue'
 import Modal from './components/Modal.vue'
 import PaperImport from './components/PaperImport.vue'
+import PracticeHistory from './components/PracticeHistory.vue'
 export default {
   ...DefaultTheme,
   enhanceApp({ app }) {
@@ -17,5 +18,6 @@ export default {
     app.component('HomeQuickNav', HomeQuickNav)
     app.component('Modal', Modal)
     app.component('PaperImport', PaperImport)
+    app.component('PracticeHistory', PracticeHistory)
   }
 }

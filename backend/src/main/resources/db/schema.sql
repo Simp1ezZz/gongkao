@@ -84,7 +84,8 @@ CREATE TABLE question (
 CREATE TABLE practice_session (
     id              BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id         BIGINT NOT NULL,
-    paper_id        BIGINT NOT NULL,
+    paper_id        BIGINT DEFAULT NULL COMMENT '整卷练习关联试卷,专项练习为null',
+    module          VARCHAR(50) DEFAULT NULL COMMENT '专项练习模块名,整卷练习为null',
     status          ENUM('ongoing', 'paused', 'submitted', 'abandoned')
                     NOT NULL DEFAULT 'ongoing',
     time_elapsed    INT NOT NULL DEFAULT 0 COMMENT '已用秒数',
@@ -96,7 +97,7 @@ CREATE TABLE practice_session (
     INDEX idx_user_paper (user_id, paper_id),
     INDEX idx_status (status),
     FOREIGN KEY (user_id) REFERENCES user(id) ON DELETE CASCADE,
-    FOREIGN KEY (paper_id) REFERENCES paper(id) ON DELETE CASCADE
+    FOREIGN KEY (paper_id) REFERENCES paper(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 7. 用户答案
