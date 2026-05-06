@@ -1,6 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { importApi } from '../utils/api.js'
+import { importApi, getUser } from '../utils/api.js'
+
+const currentUser = getUser()
+const isAdmin = currentUser?.role === 'admin'
 
 const step = ref(1)
 const loading = ref(false)
@@ -102,6 +105,13 @@ function reset() {
 
 <template>
   <div class="paper-import">
+    <div v-if="!isAdmin" class="no-permission">
+      <div class="no-permission-icon">&#128274;</div>
+      <h3>无权限访问</h3>
+      <p>此页面仅限管理员使用</p>
+      <a href="/" class="btn-primary">返回首页</a>
+    </div>
+    <template v-else>
     <div class="steps">
       <div :class="['step-item', { active: step >= 1, done: step > 1 }]">
         <span class="step-num">1</span> 上传文件
@@ -207,10 +217,33 @@ function reset() {
       <p>共导入 {{ totalQuestions }} 道题目</p>
       <button class="btn-primary" @click="reset">继续导入</button>
     </div>
+    </template>
   </div>
 </template>
 
 <style scoped>
+.no-permission {
+  text-align: center;
+  padding: 80px 24px;
+  background: var(--vp-c-bg-soft);
+  border-radius: 12px;
+}
+
+.no-permission-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.no-permission h3 {
+  margin-bottom: 8px;
+  color: var(--vp-c-text-1);
+}
+
+.no-permission p {
+  color: var(--vp-c-text-2);
+  margin-bottom: 24px;
+}
+
 .paper-import {
   max-width: 900px;
   margin: 0 auto;

@@ -33,7 +33,7 @@ export default defineConfig({
       { text: '申论', link: '/essay-bank/' },
       { text: '专项练习', link: '/practice/special/' },
       { text: '个人中心', link: '/login/' },
-      { text: '管理', link: '/admin/import/' },
+      { text: '试卷导入', link: '/admin/import/' },
 
     ],
     sidebar: {
