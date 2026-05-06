@@ -34,10 +34,6 @@
               :disabled="loadingMore">
         {{ loadingMore ? '加载中...' : `📥 加载更多 (已加载 ${papers.length}/${total})` }}
       </button>
-
-      <div class="bank-footer">
-        <a href="/practice/special/" class="link-special">📝 专项练习</a>
-      </div>
     </template>
 
     <!-- 专项练习模式 -->
@@ -99,7 +95,7 @@ const papers = ref([])
 const loading = ref(false)
 const loadingMore = ref(false)
 const page = ref(1)
-const pageSize = 25
+const pageSize = 10
 const total = ref(0)
 const customCounts = reactive({})
 
@@ -321,17 +317,6 @@ onMounted(() => {
   opacity: 0.6;
   cursor: not-allowed;
 }
-
-.bank-footer {
-  text-align: center;
-  margin-top: 20px;
-}
-.link-special {
-  color: var(--vp-c-brand);
-  text-decoration: none;
-  font-size: 15px;
-}
-.link-special:hover { text-decoration: underline; }
 
 .loading { text-align: center; padding: 40px; color: var(--vp-c-text-2); }
 

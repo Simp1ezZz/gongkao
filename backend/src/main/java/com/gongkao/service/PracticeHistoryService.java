@@ -92,14 +92,14 @@ public class PracticeHistoryService {
             new Page<>(query.getPage(), query.getPageSize()), wrapper
         );
 
-        // Batch load papers
+        // Batch load papers (title + questionCount)
         Set<Long> paperIds = page.getRecords().stream()
             .map(PracticeSession::getPaperId)
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
-        Map<Long, String> paperTitles = paperIds.isEmpty() ? Map.of()
+        Map<Long, Paper> paperMap = paperIds.isEmpty() ? Map.of()
             : paperMapper.selectBatchIds(paperIds).stream()
-                .collect(Collectors.toMap(Paper::getId, Paper::getTitle));
+                .collect(Collectors.toMap(Paper::getId, p -> p));
 
         // Batch load answer stats per session
         List<Long> sessionIds = page.getRecords().stream()
@@ -118,16 +118,23 @@ public class PracticeHistoryService {
             item.setType(isPaper ? "paper" : "special");
 
             if (isPaper) {
-                item.setPaperTitle(paperTitles.getOrDefault(s.getPaperId(), "未知试卷"));
+                Paper paper = paperMap.get(s.getPaperId());
+                item.setPaperTitle(paper != null ? paper.getTitle() : "未知试卷");
             } else {
                 item.setPaperTitle(formatSpecialTitle(s));
             }
 
             int[] stats = statsMap.getOrDefault(s.getId(), new int[]{0, 0, 0});
-            item.setTotalQuestions(stats[0]);
+            // 整卷用试卷实际题目数，专项用答题数
+            if (isPaper && paperMap.containsKey(s.getPaperId())) {
+                Paper paper = paperMap.get(s.getPaperId());
+                item.setTotalQuestions(paper.getQuestionCount() != null ? paper.getQuestionCount() : stats[0]);
+            } else {
+                item.setTotalQuestions(stats[0]);
+            }
             item.setCorrectCount(stats[1]);
             item.setWrongCount(stats[2]);
-            item.setUnansweredCount(stats[0] - stats[1] - stats[2]);
+            item.setUnansweredCount(item.getTotalQuestions() - stats[1] - stats[2]);
 
             int graded = stats[1] + stats[2];
             item.setAccuracy(graded > 0 ? Math.round((double) stats[1] / graded * 100 * 100.0) / 100.0 : 0);
@@ -161,26 +168,28 @@ public class PracticeHistoryService {
             vo.setPaperTitle(formatSpecialTitle(session));
         }
 
-        // Load answers
+        // Load answers (keyed by questionId)
         List<UserAnswer> answers = userAnswerMapper.selectList(
             new LambdaQueryWrapper<UserAnswer>()
                 .eq(UserAnswer::getSessionId, sessionId)
                 .eq(UserAnswer::getUserId, userId)
         );
+        Map<Long, UserAnswer> answerMap = answers.stream()
+            .collect(Collectors.toMap(UserAnswer::getQuestionId, a -> a, (a, b) -> a));
 
-        List<Long> questionIds = answers.stream()
-            .map(UserAnswer::getQuestionId).collect(Collectors.toList());
-        Map<Long, Question> questionMap = questionIds.isEmpty() ? Map.of()
-            : questionMapper.selectBatchIds(questionIds).stream()
-                .collect(Collectors.toMap(Question::getId, q -> q));
+        // Load all questions: for paper sessions load from paper, for special load answered questions
+        List<Question> allQuestions;
+        if (isPaper && session.getPaperId() != null) {
+            allQuestions = questionMapper.selectByPaperId(session.getPaperId());
+        } else {
+            List<Long> qIds = answers.stream().map(UserAnswer::getQuestionId).collect(Collectors.toList());
+            allQuestions = qIds.isEmpty() ? List.of() : questionMapper.selectBatchIds(qIds);
+        }
 
-        int correct = 0, wrong = 0;
+        int correct = 0, wrong = 0, unanswered = 0;
         List<PracticeHistoryDetailVO.QuestionDetail> questionDetails = new ArrayList<>();
 
-        for (UserAnswer a : answers) {
-            Question q = questionMap.get(a.getQuestionId());
-            if (q == null) continue;
-
+        for (Question q : allQuestions) {
             PracticeHistoryDetailVO.QuestionDetail detail = new PracticeHistoryDetailVO.QuestionDetail();
             detail.setQuestionId(q.getId());
             detail.setSortOrder(q.getSortOrder());
@@ -188,24 +197,33 @@ public class PracticeHistoryService {
             detail.setContent(q.getContent());
             detail.setOptions(q.getOptions());
             detail.setCorrectAnswer(q.getAnswer());
-            detail.setUserAnswer(a.getUserAnswer());
-            detail.setIsCorrect(a.getIsCorrect());
             detail.setExplanation(q.getExplanation());
-            questionDetails.add(detail);
 
-            if (a.getIsCorrect() != null) {
-                if (a.getIsCorrect()) correct++;
-                else wrong++;
+            UserAnswer a = answerMap.get(q.getId());
+            if (a != null) {
+                detail.setUserAnswer(a.getUserAnswer());
+                detail.setIsCorrect(a.getIsCorrect());
+                if (a.getIsCorrect() != null) {
+                    if (a.getIsCorrect()) correct++;
+                    else wrong++;
+                } else {
+                    unanswered++;
+                }
+            } else {
+                detail.setUserAnswer(null);
+                detail.setIsCorrect(null);
+                unanswered++;
             }
+            questionDetails.add(detail);
         }
 
         questionDetails.sort(Comparator.comparingInt(d -> d.getSortOrder() != null ? d.getSortOrder() : 0));
 
         PracticeHistoryDetailVO.Summary summary = new PracticeHistoryDetailVO.Summary();
-        summary.setTotalQuestions(answers.size());
+        summary.setTotalQuestions(allQuestions.size());
         summary.setCorrectCount(correct);
         summary.setWrongCount(wrong);
-        summary.setUnansweredCount(answers.size() - correct - wrong);
+        summary.setUnansweredCount(unanswered);
         int graded = correct + wrong;
         summary.setAccuracy(graded > 0 ? Math.round((double) correct / graded * 100 * 100.0) / 100.0 : 0);
 

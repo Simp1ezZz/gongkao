@@ -14,6 +14,7 @@ export default defineConfig({
   vite: {
     server: {
       allowedHosts: ['host.docker.internal'],
+      watch: { usePolling: true, interval: 1000 },
       proxy: {
         '/api': {
           target: backendTarget,

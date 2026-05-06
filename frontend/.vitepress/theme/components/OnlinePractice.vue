@@ -7,7 +7,7 @@
 
     <!-- 顶部栏 -->
     <div class="top-bar">
-      <a href="/题库/" class="btn-back" title="返回题库">←</a>
+      <a class="btn-back" title="返回" @click.prevent="goBack">←</a>
       <h1 class="paper-title">{{ paperDetail.title }}</h1>
       <button v-if="!result" class="btn-submit-top" @click="confirmSubmit">
         <span class="submit-icon">📤</span> 提交试卷
@@ -93,8 +93,8 @@
         </div>
 
         <!-- AI 深度分析按钮 -->
-        <button v-if="result && currentResult && currentResult.isCorrect === false"
-                class="btn-ai-analysis">❤️ AI 深度分析这道错题</button>
+        <button v-if="result"
+                class="btn-ai-analysis">❤️ AI 深度分析这道题</button>
       </div>
 
       <!-- 右侧：答题卡面板 -->
@@ -317,6 +317,14 @@ function restartPractice() {
   currentIndex.value = 0
   timeElapsed.value = 0
   startTimer()
+}
+
+function goBack() {
+  if (window.history.length > 1) {
+    window.history.back()
+  } else {
+    window.location.href = '/题库/'
+  }
 }
 
 function formatTime(seconds) {
@@ -754,7 +762,7 @@ onUnmounted(() => {
 }
 .btn-back {
   font-size: 20px; text-decoration: none; color: var(--vp-c-text-1);
-  padding: 4px 8px; border-radius: 4px; transition: background 0.2s;
+  cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: background 0.2s;
 }
 .btn-back:hover { background: var(--vp-c-bg); }
 .paper-title {
