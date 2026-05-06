@@ -36,11 +36,8 @@ public class AdminImportService {
         Paper paper = new Paper();
         PaperImportRequest.Metadata meta = req.getMetadata();
         paper.setTitle(meta.getTitle());
-        String category = meta.getCategory();
-        if (!"行测".equals(category) && !"申论".equals(category)) {
-            category = "行测";
-        }
-        paper.setCategory(category);
+        paper.setCategory(meta.getCategory() != null && !meta.getCategory().isEmpty()
+            ? meta.getCategory() : "行测");
         paper.setRegionName(meta.getRegionName());
         paper.setRating(meta.getRating() != null ? meta.getRating() : 0);
         paper.setYear(meta.getYear());

@@ -172,6 +172,8 @@ function reset() {
             <select v-model="metadata.category">
               <option value="行测">行测</option>
               <option value="申论">申论</option>
+              <option value="职测">职测</option>
+              <option value="综应">综应</option>
             </select>
           </div>
           <div class="meta-field">
